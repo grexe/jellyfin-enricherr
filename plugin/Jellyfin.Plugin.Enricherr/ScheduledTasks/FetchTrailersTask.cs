@@ -398,7 +398,7 @@ public class FetchTrailersTask : IScheduledTask
             // that already existed before this run (not freshly migrated by
             // MigrateToOwnFolder above) never otherwise gets its permissions checked
             // before we try to write a trailer into it.
-            UnixPermissions.MatchTo(folderPath, localPath, _logger);
+            UnixPermissions.MatchTo(folderPath, localPath, _logger, config.FixPermissions);
 
             // Resolution/audio preference are honored on every search, not just an
             // upgrade re-check (see DownloadBestAsync) - so a fresh item doesn't need
@@ -416,7 +416,7 @@ public class FetchTrailersTask : IScheduledTask
                 if (downloadSuccess)
                 {
                     stats.Upgraded++;
-                    UnixPermissions.MatchTo(trailerFilename, localPath, _logger);
+                    UnixPermissions.MatchTo(trailerFilename, localPath, _logger, config.FixPermissions);
                 }
             }
             else if (downloadSuccess)
@@ -440,7 +440,7 @@ public class FetchTrailersTask : IScheduledTask
         var themeSongFolder = folderPath;
         if (shouldMigrate)
         {
-            var (newLocalPath, moved) = MovieFileOperations.MigrateToOwnFolder(localPath, config.DryRun, [safeTitle], libraryRoot, _logger);
+            var (newLocalPath, moved) = MovieFileOperations.MigrateToOwnFolder(localPath, config.DryRun, [safeTitle], libraryRoot, _logger, config.FixPermissions);
             if (moved)
             {
                 stats.Migrated++;
@@ -475,7 +475,7 @@ public class FetchTrailersTask : IScheduledTask
         // healed before writing a theme song into it, not just once at creation time.
         if (config.FetchThemeSongs && movieHasOwnFolder)
         {
-            UnixPermissions.MatchTo(themeSongFolder, localPath, _logger);
+            UnixPermissions.MatchTo(themeSongFolder, localPath, _logger, config.FixPermissions);
         }
 
         if (config.FetchThemeSongs && !movieHasOwnFolder)
@@ -684,7 +684,7 @@ public class FetchTrailersTask : IScheduledTask
 
             success = true;
             bestHeight = attemptHeight;
-            UnixPermissions.MatchTo(trailerFilename, localPath, _logger);
+            UnixPermissions.MatchTo(trailerFilename, localPath, _logger, config.FixPermissions);
 
             if (bestHeight is not null && bestHeight.Value >= config.MinTrailerResolution)
             {
@@ -872,7 +872,7 @@ public class FetchTrailersTask : IScheduledTask
             // item.Path is the movie's own file for a movie, or the series' own
             // folder for a series - either way, an already-correctly-permissioned
             // reference for whatever this specific library item's setup actually is.
-            UnixPermissions.MatchTo(themePath, item.Path, _logger);
+            UnixPermissions.MatchTo(themePath, item.Path, _logger, config.FixPermissions);
         }
 
         return success ? ThemeSongOutcome.Downloaded : ThemeSongOutcome.NotFound;
@@ -1016,7 +1016,7 @@ public class FetchTrailersTask : IScheduledTask
         var referenceEpisode = SeriesFileOperations.FindReferenceEpisode(seriesPath, _logger);
         if (referenceEpisode is not null)
         {
-            UnixPermissions.MatchTo(seriesPath, referenceEpisode, _logger);
+            UnixPermissions.MatchTo(seriesPath, referenceEpisode, _logger, config.FixPermissions);
         }
 
         var trailerFilename = Path.Combine(seriesPath, $"{safeTitle}-trailer.mp4");
@@ -1065,7 +1065,7 @@ public class FetchTrailersTask : IScheduledTask
             if (ResolveTrailerUpgrade(downloadSuccess, bestHeight, trailerFilename, existingTrailerPath!, upgradeBackupPath, existingHeight))
             {
                 stats.SeriesUpgraded++;
-                UnixPermissions.MatchTo(trailerFilename, seriesPath, _logger);
+                UnixPermissions.MatchTo(trailerFilename, seriesPath, _logger, config.FixPermissions);
             }
         }
         else if (downloadSuccess)

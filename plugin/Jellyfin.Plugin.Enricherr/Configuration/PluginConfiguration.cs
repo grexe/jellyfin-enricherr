@@ -57,6 +57,7 @@ public class PluginConfiguration : BasePluginConfiguration
         MinTrailerResolution = 720;
         AllowUpgradeInOtherLanguage = false;
         FetchThemeSongs = false;
+        FixPermissions = true;
     }
 
     /// <summary>
@@ -237,4 +238,17 @@ public class PluginConfiguration : BasePluginConfiguration
     /// user-provided or downloaded by Themerr previously. Off by default.
     /// </summary>
     public bool FetchThemeSongs { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this plugin may adjust filesystem
+    /// permissions (bits and group) on a folder/file it creates or writes into, to
+    /// match an already-working reference file (see
+    /// <see cref="Services.UnixPermissions.MatchTo"/>) - needed on some setups where
+    /// media added by one user/process denies write access to whichever user Jellyfin
+    /// itself runs as, even when they share a group. On by default, matching this
+    /// plugin's behavior before this setting existed; a cautious admin who'd rather
+    /// manage permissions themselves, or whose setup doesn't need it, can turn it off.
+    /// No effect on Windows, where this was always a no-op.
+    /// </summary>
+    public bool FixPermissions { get; set; }
 }

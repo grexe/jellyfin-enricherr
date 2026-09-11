@@ -168,6 +168,20 @@
                                     warning) rather than downloading a trailer Jellyfin could never show.
                                 </div>
                             </div>
+
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input id="FixPermissions" name="FixPermissions" type="checkbox" is="emby-checkbox" />
+                                    <span>Fix file/folder permissions</span>
+                                </label>
+                                <div class="fieldDescription settingHelp">
+                                    When a folder/file this plugin creates or writes into ends up with permission bits or a
+                                    group that deny access to whichever user Jellyfin itself runs as (common when media was
+                                    added by a different user/process, e.g. over SMB), match its permission bits and group to
+                                    an already-working reference file next to it. On by default; turn off if you'd rather
+                                    manage filesystem permissions yourself. No effect on Windows.
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -758,6 +772,7 @@
                         document.querySelector('#RenameOriginal').checked = config.RenameOriginal;
                         document.querySelector('#RenameSeriesFolders').checked = config.RenameSeriesFolders;
                         document.querySelector('#MigrateToFolders').value = config.MigrateToFolders;
+                        document.querySelector('#FixPermissions').checked = config.FixPermissions;
                         document.querySelector('#TriggerLibraryScan').checked = config.TriggerLibraryScan;
                         document.querySelector('#DryRun').checked = config.DryRun;
                         document.querySelector('#VerboseLogging').checked = config.VerboseLogging;
@@ -838,6 +853,7 @@
                         config.RenameOriginal = document.querySelector('#RenameOriginal').checked;
                         config.RenameSeriesFolders = document.querySelector('#RenameSeriesFolders').checked;
                         config.MigrateToFolders = document.querySelector('#MigrateToFolders').value;
+                        config.FixPermissions = document.querySelector('#FixPermissions').checked;
                         config.TriggerLibraryScan = document.querySelector('#TriggerLibraryScan').checked;
                         config.DryRun = document.querySelector('#DryRun').checked;
                         config.VerboseLogging = document.querySelector('#VerboseLogging').checked;

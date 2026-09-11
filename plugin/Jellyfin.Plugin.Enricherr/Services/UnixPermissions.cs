@@ -32,10 +32,15 @@ namespace Jellyfin.Plugin.Enricherr.Services;
 /// </summary>
 public static class UnixPermissions
 {
-    /// <summary>Matches <paramref name="newPath"/>'s permission bits and group to <paramref name="referencePath"/>'s.</summary>
-    public static void MatchTo(string newPath, string referencePath, ILogger logger)
+    /// <summary>
+    /// Matches <paramref name="newPath"/>'s permission bits and group to
+    /// <paramref name="referencePath"/>'s. A no-op if <paramref name="enabled"/> is
+    /// false (the "Fix file/folder permissions" setting) - a cautious admin who'd
+    /// rather this plugin never touch filesystem permissions can turn that off.
+    /// </summary>
+    public static void MatchTo(string newPath, string referencePath, ILogger logger, bool enabled)
     {
-        if (OperatingSystem.IsWindows())
+        if (!enabled || OperatingSystem.IsWindows())
         {
             return;
         }

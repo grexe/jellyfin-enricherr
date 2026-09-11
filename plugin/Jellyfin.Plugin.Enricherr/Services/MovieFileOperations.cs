@@ -218,7 +218,7 @@ public static class MovieFileOperations
     /// differs from the movie file's own (possibly still-messy) name. Safe to call
     /// repeatedly: a movie already living in its own folder is left untouched.
     /// </summary>
-    public static (string NewLocalPath, bool Moved) MigrateToOwnFolder(string localPath, bool dryRun, IEnumerable<string> extraStems, string? libraryRoot, ILogger logger)
+    public static (string NewLocalPath, bool Moved) MigrateToOwnFolder(string localPath, bool dryRun, IEnumerable<string> extraStems, string? libraryRoot, ILogger logger, bool fixPermissions)
     {
         var currentDir = Path.GetDirectoryName(localPath) ?? string.Empty;
         var movieStem = Path.GetFileNameWithoutExtension(localPath);
@@ -280,7 +280,7 @@ public static class MovieFileOperations
         // movie to the library (e.g. over SMB) - matching the movie file's own
         // already-correct permissions/group avoids that regardless of which side
         // created which file.
-        UnixPermissions.MatchTo(targetDir, localPath, logger);
+        UnixPermissions.MatchTo(targetDir, localPath, logger, fixPermissions);
 
         var newLocalPath = localPath;
         var movedCount = 0;

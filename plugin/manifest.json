@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.1.1.0",
+        "changelog": "New setting: \"Fix file/folder permissions\" (Organisation group, on by default - matching this plugin's behavior before this setting existed). Given the real damage the 1.1.0.4 bug caused before it was caught, a cautious admin who'd rather this plugin never touch filesystem permission bits/group at all - or whose setup doesn't need it - can now turn it off entirely, rather than the healing being an unconditional, unavoidable part of every run. Threaded through every UnixPermissions.MatchTo call site (trailer/theme-song folders and files, for both movies and series) and MovieFileOperations.MigrateToOwnFolder. No effect on Windows either way, where this was always a no-op.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.1.0.zip",
+        "checksum": "91ced4f5947a1ecffd3a0ddfb86c1045",
+        "timestamp": "2026-09-11T13:51:52Z"
+      },
+      {
         "version": "1.1.0.4",
         "changelog": "Root-caused the recurring permission problem behind the last several releases, found live while debugging 1.1.0.3's \"stat: Permission denied\" noise: UnixPermissions.MatchTo, when healing a folder using a plain media FILE as its reference (the common case - a movie's own folder healed against the movie file itself), copied the reference's mode bits onto the folder verbatim. A regular file naturally has no execute bits at all, so this silently stripped the folder's own execute/traverse bit on every run - confirmed live against a real folder left at \"drw-rw-r--\" (no execute for anyone, including its own owner) after being \"healed\". This has been present since permission healing was first added (0.8.28.0) and runs unconditionally on every run for a movie's theme-song folder once \"Fetch theme songs\" is on - very likely the actual reason permissions kept needing to be fixed by hand between runs throughout this project's history, since the healing meant to fix them was the one silently breaking them again. MatchTo now derives a folder's execute bits from its own read/write bits (the same \"chmod +X\" convention every Unix tool uses), regardless of what the reference file's own bits look like.",
         "targetAbi": "10.11.0.0",
