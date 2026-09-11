@@ -306,6 +306,28 @@ public class FetchTrailersTask : IScheduledTask
             return;
         }
 
+        // A trailer saved next to a movie that shares its folder with other movies
+        // (no dedicated folder of its own) would just sit there unrecognized by
+        // Jellyfin (https://github.com/jellyfin/jellyfin/issues/10077) - confirmed
+        // live: several older, flat-structured movies had a "<title>-trailer.mp4"
+        // sitting in the shared library root right next to unrelated movies' own
+        // files, invisible to Jellyfin's local-trailer resolution. Only a problem
+        // when folder migration is off - "TrailersOnly"/"All" would move this movie
+        // into its own folder later in this same run/a future one, making the
+        // trailer valid once migrated.
+        if (config.MigrateToFolders == MigrationMode.Disabled && !MovieFileOperations.HasOwnFolder(localPath))
+        {
+            _logger.LogWarning(
+                "Skipping {Title}: not in its own dedicated folder, and \"Migrate movies into their own folder\" " +
+                "is off - a trailer saved here would sit in a folder shared with other movies, which Jellyfin " +
+                "can't recognize as belonging to this one. Enable folder migration, or move this movie into its " +
+                "own folder manually. ({Path})",
+                rawTitle,
+                PathDisplay.Relative(localPath, libraryRoot));
+            stats.Skipped++;
+            return;
+        }
+
         stats.Scanned++;
 
         var (preferredTitle, titleVariants) = ItemMetadata.ResolveTitles(movie, localPath);

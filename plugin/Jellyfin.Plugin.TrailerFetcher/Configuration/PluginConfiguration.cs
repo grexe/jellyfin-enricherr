@@ -13,8 +13,9 @@ namespace Jellyfin.Plugin.TrailerFetcher.Configuration;
 public enum MigrationMode
 {
     /// <summary>
-    /// Never move any movie. Local trailers will not be recognized by Jellyfin for
-    /// movies that don't already have their own folder.
+    /// Never move any movie. A movie that doesn't already have its own folder is
+    /// skipped entirely (logged as a warning) rather than downloading a trailer
+    /// Jellyfin could never recognize.
     /// </summary>
     Disabled,
 

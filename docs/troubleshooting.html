@@ -81,16 +81,19 @@
     <a href="configuration.html">Delay between requests</a>.
   </p>
 
-  <h2>Trailer downloaded, but Jellyfin doesn't show it</h2>
+  <h2>A movie is skipped: "not in its own dedicated folder"</h2>
   <p>
     Jellyfin only recognizes a local trailer file when the movie has its own dedicated folder — a correctly
     named trailer sitting in a folder shared by other movies is silently ignored
-    (<a href="https://github.com/jellyfin/jellyfin/issues/10077">jellyfin/jellyfin#10077</a>). Turn on
-    <a href="configuration.html">Migrate movies into their own folder</a>, or move the movie manually. TV
-    series don't have this problem — a series always already has its own folder.
+    (<a href="https://github.com/jellyfin/jellyfin/issues/10077">jellyfin/jellyfin#10077</a>). Rather than
+    download a trailer Jellyfin could never show, the plugin skips a movie entirely when it isn't already in
+    its own folder and <a href="configuration.html">Migrate movies into their own folder</a> is off —
+    logged as a warning naming the movie. Turn that setting on, or move the movie into its own folder
+    manually. TV series don't have this problem — a series always already has its own folder.
   </p>
   <p>
-    If the folder is already correct and it's still not showing, trigger a library scan (or turn on
+    If a trailer <em>was</em> downloaded (folder migration was on, or the movie already had its own folder)
+    and Jellyfin still isn't showing it, trigger a library scan (or turn on
     <a href="configuration.html">Trigger a library scan after changes</a> so future runs do this
     automatically).
   </p>

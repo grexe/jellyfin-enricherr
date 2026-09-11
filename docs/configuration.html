@@ -143,8 +143,9 @@
         correctly named trailer sitting in a folder shared by other movies is silently ignored. Three modes:
       </p>
       <table>
-        <tr><th>Disabled</th><td>Never move any movie. Local trailers won't be recognized for movies that
-          don't already have their own folder.</td></tr>
+        <tr><th>Disabled</th><td>Never move any movie. A movie that doesn't already have its own folder is
+          skipped entirely rather than downloading a trailer Jellyfin could never recognize — see
+          <a href="troubleshooting.html">Troubleshooting</a>.</td></tr>
         <tr><th>Only movies with a trailer</th><td>Move only movies that already have, or just got, a
           trailer. The rest of a flat library is left untouched.</td></tr>
         <tr><th>Every movie</th><td>Move every movie encountered, regardless of trailer status.</td></tr>

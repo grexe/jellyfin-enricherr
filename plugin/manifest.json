@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-trailer-fetcher/main/plugin/images/logo.png",
     "versions": [
       {
+        "version": "0.13.0.2",
+        "changelog": "Fixed a real issue found live: a movie without its own dedicated folder (a flat, shared library layout) still got a trailer downloaded and saved right next to it - but Jellyfin can never recognize a trailer sitting in a folder shared with other movies (jellyfin/jellyfin#10077), so it just sat there unused, wasting a yt-dlp request/rate-limit budget for nothing. Now, when \"Migrate movies into their own folder\" is Disabled and a movie isn't already in its own folder, it's skipped entirely with a warning explaining why, instead of silently downloading something Jellyfin could never show. Not an issue for \"Only movies with a trailer\"/\"Every movie\" mode, since those migrate the movie into its own folder either way.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-trailer-fetcher/main/plugin/dist/Jellyfin.Plugin.TrailerFetcher_0.13.0.2.zip",
+        "checksum": "fc0a9a25c7273263064fd9947c8a1b68",
+        "timestamp": "2026-09-11T07:06:58Z"
+      },
+      {
         "version": "0.13.0.1",
         "changelog": "Fixed a real bug found from a live log: the 0.11.0.0 resolution-seeking search loop wrote every candidate attempt directly to the trailer's live filename inside the watched media library - including ones about to be discarded moments later - and the discard path deleted that file then separately restored the previous one, briefly leaving neither present under any recognized name. Jellyfin's own background metadata refresh raced this and produced real \"ffprobe failed - streams and format are both null\" errors in Jellyfin's own log. Every candidate now downloads to the OS temp directory instead, entirely outside the watched library - a rejected candidate never touches it at all, and the live filename is only touched once, when a candidate is confirmed as the new best. Applied the same fix to the final upgrade-vs-original restore path for consistency. Theme song downloads were already safe - that path never writes a since-discarded attempt to its live destination.",
         "targetAbi": "10.11.0.0",

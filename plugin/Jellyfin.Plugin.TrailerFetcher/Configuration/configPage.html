@@ -155,7 +155,8 @@
                                 <div class="fieldDescription">
                                     Jellyfin only recognizes a local trailer file when the movie has its own dedicated folder
                                     (<a is="emby-linkbutton" class="button-link" href="https://github.com/jellyfin/jellyfin/issues/10077" target="_blank" rel="noopener noreferrer">jellyfin/jellyfin#10077</a>).
-                                    A correctly named trailer sitting in a folder shared by other movies is silently ignored.
+                                    When this is "Disabled", a movie without its own folder is skipped entirely (logged as a
+                                    warning) rather than downloading a trailer Jellyfin could never show.
                                 </div>
                             </div>
                         </div>
