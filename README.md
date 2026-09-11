@@ -64,7 +64,7 @@ from this repository; this section stays as a record of where the plugin came fr
 
 1. In Jellyfin, go to **Dashboard → Plugins → Repositories** and add a repository with this URL:
    ```
-   https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/manifest.json
+   https://kino.sen-labs.org/jellyfin
    ```
 2. Go to **Catalog**, find **Jellyfin Enricherr** under General, and install it.
 3. Restart Jellyfin.

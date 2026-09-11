@@ -1,0 +1,453 @@
+[
+  {
+    "guid": "04035fb7-8ca5-4bbf-a65b-7608c36e4e04",
+    "name": "Jellyfin Enricherr",
+    "description": "Finds and downloads missing local trailers and theme songs for movies and TV series, and cleans up messy release-style folder/file names.",
+    "overview": "Finds and downloads missing local trailers and theme songs for movies and TV series, and cleans up messy release-style folder/file names.",
+    "owner": "grexe",
+    "category": "General",
+    "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png",
+    "versions": [
+      {
+        "version": "1.1.0.1",
+        "changelog": "Fixed a confusing statistics display: the run date/duration/stop-reason header (and its \"Details\" breakdown) is specifically about the last run, but stayed visible above the table even while viewing the \"Overall\" tab - showing \"No run yet.\" directly above a fully populated library-wide table. Now hidden while \"Overall\" is active, shown again when switching back to \"Last run\" (the Details button's own open/closed state is preserved either way).",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.0.1.zip",
+        "checksum": "93fb2e41619a42b53a70d7695b4b58af",
+        "timestamp": "2026-09-11T10:48:05Z"
+      },
+      {
+        "version": "1.1.0.0",
+        "changelog": "New feature: a \"Show setting descriptions\" checkbox at the top of the page (on by default) hides every per-setting explanation, leaving just the controls - the docs site already covers each one in more detail, and the inline text made for cluttered screenshots. Only genuine per-setting help text is affected; status/content displays that happen to reuse the same styling (the statistics table, the last-run summary, the cookies status line) are unaffected. Client-side only, not persisted - resets to shown on every page load.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.0.0.zip",
+        "checksum": "71ef295df6d312fea9656ed9bb1bb42d",
+        "timestamp": "2026-09-11T10:29:15Z"
+      },
+      {
+        "version": "1.0.1.0",
+        "changelog": "New feature: the Statistics table's Trailers and Theme songs columns now show a tinted coverage bar behind the count - green for trailers, blue for theme songs - filled to the percentage of that library's items already covered (e.g. \"342 (49%)\"), via a single CSS gradient on the cell background. A phase that never started this run (\"n/a\") is left as plain text, no bar.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.0.1.0.zip",
+        "checksum": "931d77ba3763ebee14a8981466e19be4",
+        "timestamp": "2026-09-11T09:59:59Z"
+      },
+      {
+        "version": "1.0.0.1",
+        "changelog": "Critical fix found immediately after installing 1.0.0.0 fresh: configPage.html's settings page still hardcoded the OLD plugin's GUID (03385b47-...) in its JavaScript API calls, missed because the rename's GUID-replacement search only covered .cs/.json/.yaml files, not .html. This meant the new plugin's settings page was actually reading and would have WRITTEN the old, separately-installed \"Trailer Fetcher\" plugin's live configuration - a real risk if anyone saved settings from the new page while both are installed side by side during migration. Fixed to use the new GUID. No settings were actually overwritten before this was caught.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.0.0.1.zip",
+        "checksum": "9fe2bbdde8f1ad2b49e83aed835ea70f",
+        "timestamp": "2026-09-11T09:53:15Z"
+      },
+      {
+        "version": "1.0.0.0",
+        "changelog": "Renamed from \"Trailer Fetcher\" to \"Jellyfin Enricherr\" - the plugin outgrew a trailers-only name weeks ago (theme songs, series/season folder cleanup, movie renaming), and this marks the first release considered stable after an extended period of live overnight testing across real movie and anime libraries. C# namespace/assembly (Jellyfin.Plugin.TrailerFetcher -> Jellyfin.Plugin.Enricherr), repo, and plugin GUID all changed - this is a fresh install for existing users, not an in-place update (uninstall the old plugin first; your media/settings are untouched either way, only the plugin's own identity changed). No functional changes beyond the rename itself and refreshing the plugin description/task name to reflect everything it now does (trailers, theme songs, quality upgrades, folder/file renaming) rather than just trailers.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.0.0.0.zip",
+        "checksum": "f131b8af018a479d58893e29e9df6479",
+        "timestamp": "2026-09-11T08:27:22Z"
+      },
+      {
+        "version": "0.13.0.2",
+        "changelog": "Fixed a real issue found live: a movie without its own dedicated folder (a flat, shared library layout) still got a trailer downloaded and saved right next to it - but Jellyfin can never recognize a trailer sitting in a folder shared with other movies (jellyfin/jellyfin#10077), so it just sat there unused, wasting a yt-dlp request/rate-limit budget for nothing. Now, when \"Migrate movies into their own folder\" is Disabled and a movie isn't already in its own folder, it's skipped entirely with a warning explaining why, instead of silently downloading something Jellyfin could never show. Not an issue for \"Only movies with a trailer\"/\"Every movie\" mode, since those migrate the movie into its own folder either way.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.13.0.2.zip",
+        "checksum": "fc0a9a25c7273263064fd9947c8a1b68",
+        "timestamp": "2026-09-11T07:06:58Z"
+      },
+      {
+        "version": "0.13.0.1",
+        "changelog": "Fixed a real bug found from a live log: the 0.11.0.0 resolution-seeking search loop wrote every candidate attempt directly to the trailer's live filename inside the watched media library - including ones about to be discarded moments later - and the discard path deleted that file then separately restored the previous one, briefly leaving neither present under any recognized name. Jellyfin's own background metadata refresh raced this and produced real \"ffprobe failed - streams and format are both null\" errors in Jellyfin's own log. Every candidate now downloads to the OS temp directory instead, entirely outside the watched library - a rejected candidate never touches it at all, and the live filename is only touched once, when a candidate is confirmed as the new best. Applied the same fix to the final upgrade-vs-original restore path for consistency. Theme song downloads were already safe - that path never writes a since-discarded attempt to its live destination.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.13.0.1.zip",
+        "checksum": "b15fae884521b56292ddc1fe39c12e3b",
+        "timestamp": "2026-09-02T18:33:13Z"
+      },
+      {
+        "version": "0.13.0.0",
+        "changelog": "Extends 0.12.0.0's \"Rename series folders\" to also rename season subfolders to Jellyfin's own canonical \"Season NN\" naming (\"Specials\" for season 0) - based on each season's own resolved number from Jellyfin's Season entity (its IndexNumber), the same reliable matching that already finds the right trailer, not parsed from the subfolder's own (possibly messy) name. Only the subfolder itself is renamed; episode files inside are never touched or moved. Deliberately not going further into per-episode renaming - that's a meaningfully higher-risk operation (matching every file to the correct episode across specials, multi-episode files, and non-standard/absolute numbering) that needs its own dedicated design pass.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.13.0.0.zip",
+        "checksum": "6aec4d5ff2e445244e44477c93334b9f",
+        "timestamp": "2026-09-01T22:35:14Z"
+      },
+      {
+        "version": "0.12.0.0",
+        "changelog": "New feature: \"Rename series folders\" (off by default). A release-style series folder name (tags, resolution, season ranges - e.g. \"[Group] Series Name S1 - S5 [Full Series][BD][Dual Audio]...\") can still resolve to the right trailer via search - Jellyfin's own provider matching is forgiving enough for that - but the folder name itself is what drives Jellyfin's own poster match in the collection/list view and displayed title, which search never touches. This renames just the series' own top-level folder to its resolved title (e.g. \"Series Name (Year)\") - season subfolders and everything inside them are left exactly as they are, moved along with the rename unchanged. Unlike movie renaming, this runs unconditionally (not gated on a trailer search happening this run), since the display problem it fixes exists regardless of trailer status. Also fixed: the library-scan trigger's condition never included renamed movies/series (only new downloads/theme songs/migrations), so a run that only renamed something wouldn't tell Jellyfin to pick up the change.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.12.0.0.zip",
+        "checksum": "6bcb6fd10546a474dcb8f4d08448e7ba",
+        "timestamp": "2026-09-01T22:27:30Z"
+      },
+      {
+        "version": "0.11.0.2",
+        "changelog": "Fixed misleading log output from the 0.11.0.0 multi-source resolution-seeking loop: every attempted candidate logged \"Trailer successfully saved\", which read like a final result even when it was about to be silently discarded moments later in favor of a better one - and a discarded candidate never got its own log line explaining why. YtDlpClient.DownloadAsync's line is now the neutral \"Downloaded: <name>\" (it no longer owns the \"is this good enough\" framing), and DownloadBestAsync now logs one clear outcome per candidate: \"found a candidate at Xp, meets the target - keeping it\", \"found a candidate at Xp, still below target - keeping it for now, but still searching...\", or \"this candidate is Xp, not better than the best found so far (Yp) - discarding, still searching...\".",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.11.0.2.zip",
+        "checksum": "1fe167b33efbdfd5080c3d72d32e4acd",
+        "timestamp": "2026-09-01T21:31:39Z"
+      },
+      {
+        "version": "0.11.0.1",
+        "changelog": "Two bug fixes found from a live overnight run's log. (1) A movie migrated into its own folder (\"Migrate movies into their own folder\") kept the theme-song permission-healing call pointed at the movie's pre-migration path, which no longer existed - logged as harmless-looking \"Could not match permission bits\"/\"Could not determine group\" warnings, but meant the new folder never actually got its permissions/group healed after a migration in the same run. ProcessMovieAsync now updates its own local path once MigrateToOwnFolder confirms the move. (2) The dedicated enricherr.log file's write path only caught IOException, not UnauthorizedAccessException - the same gap fixed everywhere else in this codebase (0.8.27.0) - so a permission-restricted plugin data folder could silently prevent the file from ever being created. Also added a resolution mention (\"Saved at Xp.\") to a fresh (non-upgrade) trailer download's log line, matching the upgrade path's existing \"Upgraded trailer resolution: Xp -> Yp\" line.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.11.0.1.zip",
+        "checksum": "3a72bee126410e8360eb1cc4137a1b07",
+        "timestamp": "2026-09-01T21:24:20Z"
+      },
+      {
+        "version": "0.11.0.0",
+        "changelog": "Fixed a real gap: \"Video: minimum resolution\" and \"Audio\" were silently upgrade-only - a fresh item's very first search never checked its result against the minimum resolution (MinTrailerResolution was only ever read inside the upgrade-comparison path) and never honored the Audio preference (skipNativeLanguage was gated on an active upgrade attempt). Both now apply to every search: a fresh item that lands under the resolution target keeps trying the remaining search sources for a better one (new DownloadBestAsync, replacing the old \"stop at first successful download\" loop), keeping whichever comes out highest - the same \"only keep a genuine improvement\" comparison the upgrade path already used, just generalized so a fresh item doesn't need a later \"Update existing trailers\" run to reach quality it could have gotten immediately. \"Update existing trailers\" now only controls whether an item you already have a trailer for is eligible to be re-examined at all - resolution and audio preference are no longer conditional on it, so the config page's Audio/Video group no longer grays them out based on that checkbox. Also added a Mermaid decision-tree diagram to the \"How It Works\" docs page covering the full per-item flow, and re-padded the dashboard logo after the plugin-detail page's wide banner crop was cutting off the bottom text.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.11.0.0.zip",
+        "checksum": "34eb1c4447c09cf4e5243831bbdc4fed",
+        "timestamp": "2026-09-01T21:07:51Z"
+      },
+      {
+        "version": "0.10.4.0",
+        "changelog": "Regrouped the Quality section into \"Audio/Video\": the resolution setting (now a fixed-step dropdown - 480/720/1080/1440/2160 - instead of a free-text number) and the 0.10.3.0 Audio radio switch only ever matter when the upgrade checkbox is on, so they're now visually grouped with it and grayed out until it's checked, clarifying a point that wasn't obvious before. The checkbox itself is renamed \"Update existing trailers\" (was \"Upgrade low-quality trailers\") to read naturally as the group's master switch. No behavior change - same three settings, same underlying config properties; a resolution saved by an older version that isn't one of the fixed dropdown steps is snapped to the nearest one rather than silently reverting. Also fixed the dashboard/docs logo: the prior commit replaced logo.jpg, which nothing actually references - resized it down to the 512x512 logo.png that manifest.json's imageUrl and the docs site actually use.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.10.4.0.zip",
+        "checksum": "ba965f2ad0611033cdb14a164a126e9c",
+        "timestamp": "2026-09-01T20:38:01Z"
+      },
+      {
+        "version": "0.10.3.0",
+        "changelog": "Redesigned the 0.10.2.0 \"Allow upgrading trailers in a different language\" checkbox per feedback that it was confusing and overly long. Replaced it with an \"Audio\" radio switch offering \"Preferred language\" (default) and \"Best quality\" - same underlying behavior (AllowUpgradeInOtherLanguage), just presented as an explicit either/or choice instead of a single long-labeled checkbox. Verified the load/save wiring and mutual exclusivity in a real browser against a local stub of the relevant markup.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.10.3.0.zip",
+        "checksum": "ab7a086e0d9faacee63adf26ad54718d",
+        "timestamp": "2026-09-01T20:19:11Z"
+      },
+      {
+        "version": "0.10.2.0",
+        "changelog": "Added an \"Allow upgrading trailers in a different language\" setting, next to \"Upgrade low-quality trailers\" - the language equivalent of the resolution check, in a sense. By default, an upgrade re-search still searches in the item's own preferred language first, same as any other search (0.10.0.0) - but since the search loop stops at the first successful download regardless of resolution, that can mean settling for a mediocre same-language result without ever trying English, which often has a genuinely higher-quality upload available. Turning this on skips the native-language search stage for an upgrade attempt specifically (TrailerSources.Build's new skipNativeLanguage parameter), going straight to English/best-available - prioritizing resolution over language match for that one re-search. Off by default, matching \"Upgrade low-quality trailers\" itself.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.10.2.0.zip",
+        "checksum": "942860270827e6389b3d6fecbedf8feb",
+        "timestamp": "2026-09-01T20:07:25Z"
+      },
+      {
+        "version": "0.10.1.0",
+        "changelog": "Redesigned the Statistics section's library-totals display per feedback that the previous wording needed too much explanation to be self-evident. Replaced the plain-text \"Library (current totals, not just the last run)\" line with a proper table under two tabs - \"Last run\" (Movies/TV series as two rows, from that run's own numbers) and \"Overall\" (one row per actual Jellyfin library, always every library regardless of current scan scope, not just the movie/series totals from before) - both sharing the same Library/Items/Trailers/Theme songs columns so switching tabs compares like with like. /Enricherr/LibraryTotals now returns one row per library instead of a flat movies/series total, resolved via LibraryItemsFinder scoped to each library individually. Verified both tabs and the toggle behavior in a real browser against a local stub of the actual configPage.html.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.10.1.0.zip",
+        "checksum": "29c21bbf6eeb9408b77c73b982776566",
+        "timestamp": "2026-09-01T19:56:07Z"
+      },
+      {
+        "version": "0.10.0.0",
+        "changelog": "Two new features. (1) Trailer search now prefers the item's own preferred metadata language (resolved per-item via its library/server configuration, via BaseItem.GetPreferredMetadataLanguage - no interactive Jellyfin user session needed) before falling back to English - e.g. a German-configured library searches for \"trailer\"/\"vorschau\" first. Generalizes what was already a Japanese-only special case (script-detection triggering \"予告\"/\"PV\" queries) into an explicit table covering ~15 languages (new TrailerLanguages.cs); the trailer-keyword acceptance filter got the same words added so a native-language match isn't then rejected for using its own language's word. Never a hard restriction - English and the bare-title fallback are still always tried afterward too. Verified the language-lookup and keyword-matching logic directly (language-code resolution including \"de-DE\"-style fallback to the primary subtag, and real foreign-language sample titles all correctly recognized). (2) The settings page's Statistics section now also shows library-wide totals (via a new /Enricherr/LibraryTotals endpoint) - how many movies/series currently have a trailer or theme song right now, computed fresh each page load, not just what the last run happened to find or download. Refactored the movie/series library-querying logic (previously 4 near-duplicate private methods on FetchTrailersTask) into a shared LibraryItemsFinder used by both the scheduled task and the new endpoint, so they can't drift out of sync on what counts as \"in scope\".",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.10.0.0.zip",
+        "checksum": "9912f45d6edf77a943bd0abcc200cf02",
+        "timestamp": "2026-09-01T19:20:59Z"
+      },
+      {
+        "version": "0.9.0.0",
+        "changelog": "Theme song fetching (0.8.26.0-0.8.29.0) is now solid - marking it with a proper minor version bump rather than another patch-level one, since a whole new feature landing under a patch bump undersold it. Final fix in this run: a folder migrated in an *earlier* run never got its permissions healed by 0.8.28.0/0.8.29.0 - MigrateToOwnFolder's own \"already in its own folder\" check returns early before ever reaching the permission-matching call, so only a folder actually created in the *same* run as a theme song fetch benefited. Confirmed live: a movie's folder from a previous migration stayed at the wrong (non-group-writable) permissions indefinitely, even on runs that successfully wrote a theme song into it (because the process happened to already own the folder by then, masking the gap). Now re-applies permission/group healing to a movie's own folder on every run that fetches a theme song, not just the run that first created it.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.9.0.0.zip",
+        "checksum": "e3601b18835f94ca1feacfb0f218fde1",
+        "timestamp": "2026-08-31T23:01:01Z"
+      },
+      {
+        "version": "0.8.29.0",
+        "changelog": "Made 0.8.28.0's permission/group matching genuinely POSIX-portable instead of Linux-only, per feedback that the underlying mechanisms don't actually need Linux specifically. File.GetUnixFileMode/SetUnixFileMode is a portable .NET API that works on any Unix-like target - verified directly, it already worked correctly on macOS once unblocked. The only genuinely non-portable part was `chgrp --reference=`, a GNU-only extension BSD's chgrp (macOS) doesn't support - replaced with resolving the reference file's numeric group id via `stat` (its format flag differs between BSD/macOS `-f` and GNU/Linux `-c`, handled per-platform, both verified directly) and passing that plain number to `chgrp`, which is standard usage on every chgrp implementation. Verified the whole thing end to end on macOS, including the file-vs-directory execute-bit handling (a directory reference's execute bit correctly carries over to a new directory target but is correctly stripped when the target is a regular file).",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.29.0.zip",
+        "checksum": "e18f655bd3ec43652c5d9629882d0352",
+        "timestamp": "2026-08-31T22:51:48Z"
+      },
+      {
+        "version": "0.8.28.0",
+        "changelog": "Root-caused and fixed the actual permission problem behind 0.8.27.0, rather than only handling the failure gracefully. Confirmed live: media added to the library by different users/processes (e.g. copied in over SMB as one user, with Jellyfin's own containerized process running as another) can end up with permission bits that deny write access to whichever of them didn't create a given file/folder, even when both share the same group. On Linux, any file or folder this plugin creates (a downloaded trailer/theme song, or a new folder from migration) now gets its permission bits and group matched to the movie/series' own existing file or folder via a new UnixPermissions.MatchTo helper (File.SetUnixFileMode plus `chgrp --reference=`, verified both mechanisms directly before wiring them in). Deliberately never touches the file's owner, since changing that generally needs root - matching group and permission bits was enough to solve the reported case, since the differently-owned files already shared a group. No configuration needed; best-effort and silently logged on failure, same as everywhere else in this plugin that touches the filesystem.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.28.0.zip",
+        "checksum": "d316a177f4900ba83e92f22ca9476d97",
+        "timestamp": "2026-08-31T22:47:51Z"
+      },
+      {
+        "version": "0.8.27.0",
+        "changelog": "Fixed a permission error crashing the entire run instead of just skipping the affected item. Confirmed live: a theme song download hit System.UnauthorizedAccessException on the underlying NFS share, and it propagated all the way out of the scheduled task - crashing the whole run, not just that one movie's theme song. Root cause: UnauthorizedAccessException does not inherit from IOException in .NET (verified directly - reproduced a real permission-denied File.Copy locally and confirmed its exact exception type), so every \"catch (IOException ...)\" around a file operation in this codebase - trailer rename/migrate, trailer/theme song download, trailer upgrade backup/restore - silently let a permission-denied failure through uncaught. Broadened every one of them (14 call sites across MovieFileOperations.cs, FetchTrailersTask.cs, and YtDlpClient.cs) to also catch UnauthorizedAccessException. Also fixed a second, subtler instance of the same gap: the temp-file cleanup in a `finally` block after a failed copy/move wasn't wrapped in any try/catch at all, so even after fixing the primary catch, that cleanup step alone (deleting the same permission-denied file) could still crash the run on its own - now handled the same way.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.27.0.zip",
+        "checksum": "21f47a6e97cbf4e900a9f9395de92a3c",
+        "timestamp": "2026-08-31T22:39:51Z"
+      },
+      {
+        "version": "0.8.26.0",
+        "changelog": "Added an opt-in \"Fetch theme songs\" setting. When on, each movie/series also gets a local theme.mp3, looked up on ThemerrDB (https://github.com/LizardByte/ThemerrDB) by TMDb id - the same community-curated database the Themerr-jellyfin plugin uses, so an item only gets a theme song here if Themerr would have offered one too. Only the lookup is shared with Themerr; the download goes through this plugin's own yt-dlp pipeline (rate-limit pacing, retry, client fallback) instead of Themerr's YoutubeExplode-based downloader, which fails outright on plenty of videos yt-dlp handles fine (the trigger for this feature: confirmed live, Themerr's own log showed YoutubeExplode.Exceptions.VideoUnavailableException on a video that downloaded without issue via yt-dlp). A movie only gets a theme song once it's confirmed to be in its own dedicated folder - unlike a trailer's per-movie filename, theme.mp3 is a fixed name that would otherwise be misattributed across every movie sharing a folder; a TV series always already has its own folder. An existing theme.mp3, whether user-provided or from Themerr, is never touched. Off by default.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.26.0.zip",
+        "checksum": "afcc57fa84a5809c4571f55643ea46c9",
+        "timestamp": "2026-08-31T22:25:40Z"
+      },
+      {
+        "version": "0.8.25.0",
+        "changelog": "Two visual fixes to 0.8.23.0's settings-page reorg, confirmed live. (1) Group headings (\"Scanning\", \"Quality\", ...) were barely distinguishable from regular field labels since they reused the same styling - they're now visibly bigger/bolder with an underline, and each group's fields are indented beneath it so the grouping is actually readable at a glance. (2) The \"Rate-limit retry delay\" field's disabled state (when \"Retry once if rate-limited\" is off) wasn't visually obvious - this page has no stylesheet backing a :disabled look (a <style> block gets dropped by Jellyfin's dashboard injection), so the whole field is now explicitly dimmed via inline style, toggled live with the checkbox. Verified both in a real browser against a local stub of the actual configPage.html.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.25.0.zip",
+        "checksum": "4fa7c384309ef439c2f72fe5f32916c1",
+        "timestamp": "2026-08-31T20:42:07Z"
+      },
+      {
+        "version": "0.8.24.0",
+        "changelog": "Fixed a movie being silently skipped over a missing file extension. Confirmed live: \"Operation Broken Arrow.mpg\" - a legitimate older DVD-era rip - was rejected outright (\"Not a video file (extension: .mpg)\") and never got a trailer at all, purely because .mpg wasn't in the recognized-video-extensions list. Added .mpg plus the rest of the common real-world video containers that list was also missing (.mpeg, .flv, .3gp, .3g2, .divx, .asf, .rm, .rmvb, .mts, .m2v, .ogv), not just the one that happened to get reported.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.24.0.zip",
+        "checksum": "13a4701fc1bc256844665367ec35cb7e",
+        "timestamp": "2026-08-31T20:28:30Z"
+      },
+      {
+        "version": "0.8.23.0",
+        "changelog": "Reorganized the settings page for readability - purely cosmetic, no configuration keys changed. The last-run summary now shows just the one-line header (date, duration, stop reason) with the full per-movie/series breakdown behind a \"Details\" toggle instead of always being fully expanded. Every other setting is grouped under \"Scanning\" (libraries, library-scan trigger, max trailer duration), \"Quality\" (minimum resolution, upgrade toggle), \"Organisation\" (rename, folder migration), \"Network\" (cookies, request delay, rate-limit retry), and \"Debugging and Testing\" (dry run, verbose logging) - previously one long unstructured list. \"Rate-limit retry delay\" is now visibly disabled whenever \"Retry once if rate-limited\" is off, instead of being editable but inert.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.23.0.zip",
+        "checksum": "2169a7d1c110c4bd3ca6d7a4aadd8c58",
+        "timestamp": "2026-08-31T20:19:40Z"
+      },
+      {
+        "version": "0.8.22.0",
+        "changelog": "Added an opt-in \"Upgrade low-quality trailers\" setting. When on, a movie/series that already has a local trailer still gets re-checked against a configurable \"Minimum trailer quality\" (default 720p, via ffprobe) and re-searched if it falls short - most usefully for trailers that landed on the mweb fallback's ~360p cliff (see 0.8.21.0). The existing file is only ever replaced by a genuinely higher-resolution download: both are probed and compared after the new attempt completes, so a re-attempt that can't beat it, or that also lands on a low-quality fallback, leaves the original trailer untouched rather than trading one low-quality file for another. Off by default - re-checking every under-quality trailer on every run until it clears the bar means more yt-dlp traffic (and so more rate-limit exposure) than a one-time pass, until the library catches up.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.22.0.zip",
+        "checksum": "eea53a5168e18808e0acb4e536499c85",
+        "timestamp": "2026-08-31T20:00:23Z"
+      },
+      {
+        "version": "0.8.21.0",
+        "changelog": "Improved trailer quality. The download format selector was restricted to [ext=mp4]/[ext=m4a] video/audio only - YouTube's actual highest-resolution streams are frequently VP9/AV1-in-webm only, so this could silently cap quality below what was genuinely available, confirmed by comparing format listings for real trailer searches. Now uses yt-dlp's own true default selector (bestvideo*+bestaudio/best, no container restriction) while --merge-output-format still remuxes the result into .mp4 to match the fixed trailer filename - Jellyfin transcodes on the fly for any client that can't direct-play the resulting codec, same as for any other video. Separately, confirmed by hand that the existing mweb fallback tier (used when the higher-quality adaptive formats need a PO token this plugin doesn't provide) can silently settle for an old muxed format capped around 360p - a real quality cliff that was previously indistinguishable in the log from a normal download. That retry's log line now says so explicitly.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.21.0.zip",
+        "checksum": "b8c316aabb7fb103ef443011a821c7bb",
+        "timestamp": "2026-08-31T19:26:54Z"
+      },
+      {
+        "version": "0.8.20.0",
+        "changelog": "Two fixes from last night's live run, confirmed against the actual log. (1) The \"retry once if rate-limited\" flag never re-armed after a successful retry: once used, it stayed used for the rest of the run, so a large backlog that re-triggers YouTube's rate limit a second time later in the same run gave up immediately instead of getting its own retry. It now resets after every movie/series that completes without hitting the limit again - proof the limit actually lifted, not just a lucky moment - so each new rate-limit encounter gets its own single retry, same as the first. (2) The settings page and log summary showed \"0\" for TV series stats when the run got rate-limited/cancelled entirely during the movies phase (movies are always processed first) and series were never reached at all - indistinguishable from \"reached every series and matched none\". Both now show \"n/a\" for a phase that was never started, distinct from a genuine zero count.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.20.0.zip",
+        "checksum": "c7ccd67d9171c31fa7f826adce050aeb",
+        "timestamp": "2026-08-31T18:30:56Z"
+      },
+      {
+        "version": "0.8.19.0",
+        "changelog": "Fixed a cosmetic logging quirk: a movie sitting directly in the library root (no subfolder) made \"*** Entering directory: .\" print a bare \".\" instead of a useful name, since Path.GetRelativePath returns \".\" when the two paths are equal. PathDisplay.Relative now falls back to the library root's own folder name in that case, the same way every subfolder is already shown by its own name rather than a path fragment.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.19.0.zip",
+        "checksum": "dbd69098bdee455f8b148d61521e9deb",
+        "timestamp": "2026-08-31T18:21:49Z"
+      },
+      {
+        "version": "0.8.18.0",
+        "changelog": "A run that gets YouTube-rate-limited can now wait and retry once instead of always stopping immediately. There's no reliable way to know when the limit actually lifts - YouTube's own message only states an upper bound (\"...for up to an hour\") - so this is a single bounded retry, not a backoff loop: on the first rate limit, the run waits a configurable delay (new \"Rate-limit retry delay\" setting, default 65 minutes - a bit past YouTube's own stated ceiling) and then resumes the same run from wherever it stopped (not a full restart), controlled by a new \"Retry once if rate-limited\" toggle (on by default). If the retry also gets rate-limited, the run stops for good rather than waiting and retrying again - continuing to hammer an apparently-still-active limit doesn't help and risks making it worse.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.18.0.zip",
+        "checksum": "ebdafb564f5f99572a43ae5ebbf08aba",
+        "timestamp": "2026-08-31T00:13:25Z"
+      },
+      {
+        "version": "0.8.17.0",
+        "changelog": "Two small polish items from live testing. (1) The rate-limit ERROR log line is now a fixed, short message (\"...rate-limited by YouTube for up to an hour. Stopping the run now.\") with a link to yt-dlp's own wiki page on the condition, instead of extracting/reformatting yt-dlp's raw stderr text. (2) The settings page's last-run-summary table had a generic \"Metric / Value\" header for movies but correctly showed \"TV series\" as a section label further down - movies now get their own \"Movies\" section label the same way, and the generic header row (which added nothing the section labels don't already say) was dropped.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.17.0.zip",
+        "checksum": "63de7f5625103107f40e7dfdf19cf612",
+        "timestamp": "2026-08-31T00:08:41Z"
+      },
+      {
+        "version": "0.8.16.0",
+        "changelog": "Trimmed the rate-limit ERROR log line. 0.8.15.0's log included yt-dlp's entire raw warning paragraph verbatim - a lead-in sentence, the actual rate-limit notice, then yt-dlp's own \"-t sleep\" suggestion and a wiki URL, most of which is noise once our own message already explains what's happening and why. Now logs just the one sentence that matters (\"The current session has been rate-limited by YouTube for up to an hour.\") plus a short reason for stopping early. No behavior change, log output only.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.16.0.zip",
+        "checksum": "50bf323a4ad21d15bcf700d27f6650da",
+        "timestamp": "2026-08-31T00:03:04Z"
+      },
+      {
+        "version": "0.8.15.0",
+        "changelog": "Handle YouTube's own rate limiting instead of grinding through it. Confirmed live on a long run: once YouTube rate-limits a session (\"The current session has been rate-limited by YouTube for up to an hour\"), no client/format fallback helps, and continuing on to retry other clients or move to the next movie/series just wastes time against a block that won't lift itself any sooner - possibly making it worse. YtDlpClient now detects this specific condition and throws a distinct YouTubeRateLimitedException that propagates straight past every retry tier and out of the movie/series loop, stopping the whole run early - with whatever was found before it hit still logged/persisted the same way a cancelled run's partial summary already is (RunSummary's Aborted flag is now a StopReason string so the summary/log can say \"YouTube rate-limited this session\" specifically, not just \"cancelled\"). Also added a \"Delay between requests\" setting (default 3s, configurable, 0 disables it) - a plain per-invocation delay before every yt-dlp call, sized for this plugin's actual pattern of many short-lived separate invocations rather than yt-dlp's own \"-t sleep\" preset (which sleeps up to 20s per download, tuned for one long-running session working through a playlist).",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.15.0.zip",
+        "checksum": "dbc64cec8154e2cd32d22510b6a8f18b",
+        "timestamp": "2026-08-30T23:51:54Z"
+      },
+      {
+        "version": "0.8.14.0",
+        "changelog": "Added a \"Verbose logging\" setting. Each rejected search candidate's specific reason (\"Title mismatch: ...\", \"Duration > 300s: ...\") is now only logged when it's turned on (off by default) - a movie/series that needs several fallback search stages before finding (or giving up on) a trailer can generate dozens of these lines, burying the handful that actually matter for a normal run. Each search stage's overall outcome (what was searched, found or not) is still always logged regardless; this only trims the per-candidate detail within a stage, which matters most when actively diagnosing why a specific movie/series isn't finding a trailer it should.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.14.0.zip",
+        "checksum": "a4f71652a110a8071ad1fd0b6a99ec51",
+        "timestamp": "2026-08-30T23:37:08Z"
+      },
+      {
+        "version": "0.8.13.0",
+        "changelog": "Two fixes. (1) 0.8.12.0 over-corrected: forcing player_client=web for EVERY download whenever a cookies file was merely configured (regardless of whether that specific video needed it) reintroduced 0.8.10.0's \"Only images are available for download\" failure for ordinary, non-restricted videos, confirmed live. DownloadAsync now has three tiers instead of two: try the default client first, retry with player_client=web only if that failed AND cookies are configured (a targeted shot at the age-verification case), then fall back to mweb if that still fails too. (2) Fixed a year-range (\"(1994-2019)\", an anthology/box-set's airing span) not being recognized as a unit by the year-extraction regex - only the first year was getting stripped, leaving \"( -2019)\" behind in the resolved title. Confirmed live on a Shinichiro Watanabe anthology folder. Fixed in the shared TitleMatching.CleanMediaTitle since a movie box set could hit the same pattern.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.13.0.zip",
+        "checksum": "e05ae33fcabb41ddb1205c364f0c0920",
+        "timestamp": "2026-08-30T23:23:12Z"
+      },
+      {
+        "version": "0.8.12.0",
+        "changelog": "Fixed a regression from 0.8.10.0 that broke cookies-based authenticated/age-restricted access: an age-restricted video failed with \"Sign in to confirm your age\" despite a valid, verified-account cookies.txt being uploaded. 0.8.10.0 removed the player_client override entirely, but it had been doing two different jobs - restricting to a now-stale \"web,android,ios\" list (correctly removed) and forcing player_client=web whenever cookies were configured (needed, and removed by mistake): a cookies file only actually takes effect on the \"web\" client, since the app-style clients (android, ios, mweb, tv, android_vr, ...) authenticate via device tokens and silently ignore a cookies file regardless of --cookies being set. CommonArgs now forces player_client=web again specifically when a cookies file is configured. Also updated DownloadAsync's mweb retry fallback to skip itself (retrying the same web-forced command instead) whenever cookies are set, since mweb doesn't honor cookies either and would have sent yt-dlp two conflicting player_client overrides in the same command.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.12.0.zip",
+        "checksum": "479d649abded5dc1958ddd95b9394711",
+        "timestamp": "2026-08-30T23:09:50Z"
+      },
+      {
+        "version": "0.8.11.0",
+        "changelog": "Small polish from live testing. The candidate-rejection log line was ambiguous (\"Title mismatch or missing keyword\") when the code actually knows which one it was - split into two distinct, specific messages (\"Title mismatch: ...\" vs \"Title matches, but no trailer keyword (trailer/teaser/...): ...\"). Also dropped a manually-added inner quote pair around the candidate title in that message, which stacked with the logging backend's own automatic quoting the same way earlier quoting bugs did.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.11.0.zip",
+        "checksum": "8243eee5879eff7df98aaec984e886d1",
+        "timestamp": "2026-08-30T23:05:35Z"
+      },
+      {
+        "version": "0.8.10.0",
+        "changelog": "Found and fixed the actual root cause of the \"Only images are available\" failures (deno confirmed fully functional in 0.8.9.0's diagnostics). Removed the hardcoded --extractor-args youtube:player_client=web,android,ios override - it made sense when the standalone script was written, but confirmed live and by hand: it's become actively harmful as YouTube's defenses evolved (android/ios are now routinely filtered by SABR/PO-token requirements), while yt-dlp's own default client selection (actively maintained upstream to route around exactly this) found proper adaptive formats via a different client. That default choice isn't fully reliable either though - confirmed live and reproduced consistently by hand: its first-choice client's formats can extract fine but 403 on the actual download. DownloadAsync now tries the default first, and retries with an explicit player_client=mweb on failure specifically (not just repeating the same command) - mweb's own adaptive formats get filtered the same way, but it then falls back cleanly to a legacy, reliably-downloadable format instead of failing outright, confirmed consistent across repeated attempts. Verified the whole two-tier sequence end to end against the exact failing video before shipping.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.10.0.zip",
+        "checksum": "83a926f0087ba38f4fff4bab96554c0a",
+        "timestamp": "2026-08-30T22:57:12Z"
+      },
+      {
+        "version": "0.8.9.0",
+        "changelog": "Diagnostic-only addition. The previous release's added logging revealed the real yt-dlp error: \"WARNING: Only images are available for download\" - meaning YouTube served no real video/audio formats at all on that server, only storyboard images, which happens when YouTube enforces SABR-only streaming and the signature challenge solver can't actually run - even when a JS runtime binary is present on disk, since that doesn't prove it actually executes successfully from inside Jellyfin's own process (permissions/sandboxing can differ from a manual test). DependencyProvisioner now runs \"deno --version\" in that same execution context - once after downloading it, and once on every run where it was already present - and logs the result, to get a definitive per-run answer instead of inferring deno's health from a downstream symptom that has more than one possible cause.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.9.0.zip",
+        "checksum": "0e413477c4bf3c8abcfee254ea2f7828",
+        "timestamp": "2026-08-30T22:47:27Z"
+      },
+      {
+        "version": "0.8.8.0",
+        "changelog": "Three fixes from live testing. (1) The \"Last run\" summary is now cancellation-safe: cancelling a run used to skip saving the summary entirely, leaving a stale summary from a previous run on display - the movie/series loops are now wrapped so the summary is always logged/persisted with whatever was found before it stopped (marked \"cancelled - partial results\"), then the cancellation is rethrown so Jellyfin's TaskManager still correctly reports it as cancelled rather than completed. (2) The summary now only shows a Movies or TV Series section for libraries actually in scope for that run, instead of always showing \"Total Movies in Library: 0\" for a run scoped to series-only libraries. (3) Replaced the full ISO \"Completed\" table row with a compact date + time + duration line above the table. Also added diagnostic logging (yt-dlp's WARNING lines, and the resolved yt-dlp/deno paths) to help pin down a reported case where every download failed with \"Requested format is not available\" on one server.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.8.0.zip",
+        "checksum": "241e173f6e04f3c6b5f56382d8f99c1d",
+        "timestamp": "2026-08-30T22:38:38Z"
+      },
+      {
+        "version": "0.8.7.0",
+        "changelog": "Two fixes. The settings page's \"Last run\" table styling never actually applied (confirmed against 0.8.6.0, incognito included): Jellyfin's dashboard loads a plugin's config page by injecting its body content into the existing app shell, which drops the page's own <head> - a <style> block there silently never took effect. Rewrote the table to style itself entirely via inline styles set in JS instead, which can't be dropped that way. Also added a single retry to YtDlpClient.DownloadAsync: a download that failed with \"Requested format is not available\" during a real run was verified (by hand, twice, with the exact same command) to succeed immediately after - a transient hiccup, not a persistent problem with that video - so one retry is cheap insurance against exactly that without masking a genuinely unavailable video, which will just fail again on the retry too.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.7.0.zip",
+        "checksum": "83fb7aa6f123bcfa048179d9a9994693",
+        "timestamp": "2026-08-30T22:27:41Z"
+      },
+      {
+        "version": "0.8.6.0",
+        "changelog": "Fixed a high-impact porting regression in TitleMatching.TitleMatches: the YouTube result title was never lowercased before the phrase-match regex ran against it, while the candidate side always was - and .NET's Regex.Match is case-sensitive by default, so \"blue lock\" (candidate) silently never matched \"Blue Lock\" (a title-cased YouTube title) even though they're the same title. The standalone script avoids this by lowercasing yt_title once at the top of its filter function; the C# port dropped that step. This was very likely the dominant cause behind most search-based \"Title mismatch\" rejections seen throughout testing (movies and series both, not just the two TV cases that surfaced it) - confirmed against the exact failing case (\"Blue Lock - Official Trailer...\" now correctly matches \"Blue Lock\"). Also fixed SeriesTitleCleanup leaving an empty \"( )\" behind when the season-range fragment it removes was fully inside a parenthetical (\"Blue Lock (Season 1)\" -> \"Blue Lock ( )\" -> now \"Blue Lock\").",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.6.0.zip",
+        "checksum": "d5d93a9dc8b65ed7ea4fa103efbb0482",
+        "timestamp": "2026-08-30T22:18:55Z"
+      },
+      {
+        "version": "0.8.5.0",
+        "changelog": "Fixed wrong search queries for TV series bundled as a multi-season folder (e.g. \"... S1 - S5 [Full Series] ...\"): a season-range fragment (\"S1\", \"S1 - S5\", \"Season 1-5\") was surviving into the resolved title, since nothing in the shared title-cleanup logic knows about season ranges (a movie title never has one) - confirmed live on \"Food Wars! (Shokugeki no Soma)\", whose search queries all carried a spurious \"S1\" because Jellyfin's own matched Name already had it before the plugin ever saw it. Added Services/SeriesTitleCleanup.cs, a small series-only post-processing step (deliberately not folded into the shared ItemMetadata/TitleMatching, since this noise is TV-specific) that strips a season-range fragment from the resolved title/variants before they're used for search or the trailer filename. Verified against the exact failing case plus several variants (Season 1-4, S01-S04) and confirmed it leaves unrelated content alone (e.g. a hypothetical title like \"S1mone\").",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.5.0.zip",
+        "checksum": "4c6b1429a16d6c3c2804a3cc315fd77f",
+        "timestamp": "2026-08-30T22:08:31Z"
+      },
+      {
+        "version": "0.8.4.0",
+        "changelog": "The settings page's \"Last run\" summary is now a real styled HTML table (header row, right-aligned values, a distinct section divider for TV series counts) instead of an unstyled table with no visual structure.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.4.0.zip",
+        "checksum": "0bbbeca141a43cba6d30bb7005cd2a15",
+        "timestamp": "2026-08-30T21:58:13Z"
+      },
+      {
+        "version": "0.8.3.0",
+        "changelog": "Fixed a title-matching bug that broke every search for \"5 Centimeters per Second\" (and would break any title genuinely starting with a number - \"12 Monkeys\", \"300\", \"8 Mile\", etc.): the scene-release-cleanup heuristic stripped any leading \"number + whitespace\" as if it were a track/episode number, with no structural signal distinguishing that from a title that just starts with a digit. Removed that overly broad rule - kept the punctuation-anchored one (\"01. \", \"01 - \", \"01_\", still needed for real scene-numbered filenames) since a genuine title essentially never has a period/dash/underscore directly after a leading number. Verified against both the exact failing title and a set of real scene-numbered filenames to confirm the legitimate case still works. This heuristic was ported verbatim from the standalone script, which likely has the same latent bug.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.3.0.zip",
+        "checksum": "4a1bfc574a446c96b86e6495c48943eb",
+        "timestamp": "2026-08-30T21:53:12Z"
+      },
+      {
+        "version": "0.8.2.0",
+        "changelog": "Fixed a real miss reported from live testing: probing a candidate (yt-dlp -j --skip-download) hard-failed with \"Requested format is not available\" for some videos, discarding otherwise-fully-extracted title/duration/webpage_url metadata over a format-selection problem that doesn't matter during a metadata-only probe. Added --ignore-no-formats-error to the probe call specifically (not the actual download, which does need a real format) - verified against the exact failing video from the report: probing now returns full metadata, and the subsequent download succeeds too (yt-dlp falls back to a pre-merged format when the preferred bestvideo+bestaudio combo isn't available, e.g. due to a missing PO token). Not series-specific despite surfacing during series testing - RemoteTrailers URLs are sourced identically for movies and series, this was always a latent gap in the movie path too.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.2.0.zip",
+        "checksum": "48a7ef5663e4b2f1b390ff8c1284253a",
+        "timestamp": "2026-08-30T21:39:47Z"
+      },
+      {
+        "version": "0.8.1.0",
+        "changelog": "Refactor - per feedback, verified the movie/series duplication from 0.8.0.0 and found the SeriesMetadata.cs/SeriesTrailerSources.cs title/year-resolution and source-query-building logic was byte-for-byte identical to MovieMetadata.cs/TrailerSources.cs aside from variable names and comments (both are plain BaseItem lookups with nothing movie- or series-specific in them), so there was no actual behavior to isolate by keeping them separate - only a maintenance burden of every future fix needing to be applied twice. Merged them into one shared Services/ItemMetadata.cs and widened TrailerSources.Build to take a BaseItem. ProcessMovieAsync/ProcessSeriesAsync in FetchTrailersTask.cs stay separate, since what they actually do genuinely differs (rename/migrate + file-specific validity checking for movies vs. a plain folder-exists check for series). No functional change.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.1.0.zip",
+        "checksum": "3579558f43f9efc1018283c0f590be79",
+        "timestamp": "2026-08-30T20:47:11Z"
+      },
+      {
+        "version": "0.8.0.0",
+        "changelog": "Added TV series support - series-level trailers only (Services/SeriesMetadata.cs, Services/SeriesTrailerSources.cs), sharing the same library selection as movies but otherwise deliberately kept as a fully separate code path from the movie logic rather than a shared generic one, so a change intended for one media type can't silently affect the other. Checked Jellyfin's actual entity model first: Series has its own LocalTrailers/RemoteTrailers (same shape as Movie), but Season has no equivalent property at all - despite Jellyfin's docs showing a trailers/ folder example nested under a season folder - so season-level trailers aren't implemented until that's verified against a real library. No rename/migrate step for series: a series always already lives in its own dedicated folder. The settings page's \"Last run\" summary and the main log's TRAILER SYNC SUMMARY both show series counts alongside the movie ones now.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.8.0.0.zip",
+        "checksum": "73dbd0ce753246b96ddafcfd83d19128",
+        "timestamp": "2026-08-30T20:42:07Z"
+      },
+      {
+        "version": "0.7.1.0",
+        "changelog": "Logged paths (directory entries, rename/migration targets) now show relative to the movie's own library root (via BaseItem.GetTopParent()) instead of the full container path, so log lines aren't dominated by a repeated mount-point prefix. Also fixed one path that was still logged in full (unlike its sibling lines) in the rename-folder failure case. No behavior change - display only.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.7.1.0.zip",
+        "checksum": "4d52314c9a513930eec589c2d3b79aa3",
+        "timestamp": "2026-08-30T20:33:04Z"
+      },
+      {
+        "version": "0.7.0.0",
+        "changelog": "First real-run fixes from live testing. Fixed a class of log-quoting bugs where a value already wrapped in manual quotes in the message template got double-quoted (the logging backend quotes string values by default). Also dropped the library's GUID from the scan-start log line (not useful in the UI) and fixed a related bug where a DRY-RUN prefix fragment spliced in through its own placeholder got quoted on its own. Tightened the yt-dlp/deno download timeout from 5 minutes to 2 and gave it a clear, actionable message on failure (mentioning GitHub's release CDN specifically) instead of leaving a run looking hung - a download that times out no longer masks a deliberate task cancellation as an ordinary download failure, either. The last run's summary is now also persisted and shown on the settings page, not just buried in the log.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.7.0.0.zip",
+        "checksum": "4caaccba53a5b1411f5514052f33353e",
+        "timestamp": "2026-08-30T19:54:33Z"
+      },
+      {
+        "version": "0.6.1.0",
+        "changelog": "Removed the \"yt-dlp executable\" setting entirely - the plugin now always uses its own self-managed yt-dlp/deno (see 0.6.0.0), never a system installation. Letting that path vary would mean supporting whatever yt-dlp version/flag combination a user happens to have installed, instead of the one this plugin is actually built and tested against - and this plugin's whole point is working out of the box on a stock Jellyfin install with no server-side setup or path fiddling.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.6.1.0.zip",
+        "checksum": "841584b8d222a12cc3b9cf5273572855",
+        "timestamp": "2026-08-30T19:38:05Z"
+      },
+      {
+        "version": "0.6.0.0",
+        "changelog": "yt-dlp and the deno JavaScript runtime it needs no longer have to be installed on the server - the plugin now downloads and manages both itself (Services/DependencyProvisioner.cs), verifying checksums and self-updating yt-dlp every 24h, so it works on a stock jellyfin/jellyfin container with no customization. The 'yt-dlp executable' setting is now empty by default (auto-managed) instead of defaulting to \"yt-dlp\"; set it to a specific command/path to opt back out and use your own installation instead. Evaluated and rejected two alternatives (documented in the README): the Ytdlp.NET fluent wrapper package (still needs the same underlying binary, and its metadata API is single-URL only - doesn't support this plugin's multi-candidate probe-then-filter strategy) and MeTube (a second container/service with no metadata-only probe API and a separate cookie config).",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.6.0.0.zip",
+        "checksum": "2251d403d1fbcf88b1f10740258424f1",
+        "timestamp": "2026-08-30T19:27:03Z"
+      },
+      {
+        "version": "0.5.0.0",
+        "changelog": "Ported the standalone script's actual trailer fetching: title/year resolution, multi-stage YouTube search query building, duration+title/keyword candidate filtering, original-file renaming, and folder migration all now run for real (FetchTrailersTask was previously a wiring stub that only counted movies). Runs entirely in-process against ILibraryManager - no NAS path mapping, no HTTP calls to Jellyfin's own API, no browser cookie jar (uses the uploaded cookies.txt), library scans triggered via ILibraryManager.QueueLibraryScan() directly. Shells out to a yt-dlp executable (new 'yt-dlp executable' setting, default \"yt-dlp\" on PATH) for the actual YouTube search/download, since there's no C# equivalent - REQUIRES yt-dlp (and a JS runtime, deno or node) to be installed wherever the Jellyfin server process itself runs; ffmpeg is reused from Jellyfin's own configured encoder, no separate install needed. See the README's new Requirements section.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.5.0.0.zip",
+        "checksum": "6b2b91211e8e4f7026eca7712e45f951",
+        "timestamp": "2026-08-30T18:51:13Z"
+      },
+      {
+        "version": "0.4.2.0",
+        "changelog": "Fixed the scheduled task showing up in its own untranslated \"Library\" group instead of joining the real Library group on non-English servers. The task's Category was the literal string \"Library\", but built-in library tasks (e.g. RefreshMediaLibraryTask) get their Category from ILocalizationManager.GetLocalizedString(\"TasksLibraryCategory\") - the same server-side-localized key that this task now uses too, so both group under the same (correctly translated) label.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.4.2.0.zip",
+        "checksum": "1c895fd862cb85fc3cf1a162555bd3c6",
+        "timestamp": "2026-08-30T18:34:40Z"
+      },
+      {
+        "version": "0.4.1.0",
+        "changelog": "Fixed the \"0 movies found\" library-scoping bug, confirmed via diagnostic logging (1026 movies found server-wide, 0 when scoped to a library known to contain real movies). The fix was hand-building TopParentIds from VirtualFolderInfo.ItemId directly, which does not reliably match what TopParentIds-based filtering expects. Now resolves each configured library via ILibraryManager.GetItemById() and queries via InternalItemsQuery.Parent instead.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_0.4.1.0.zip",
+        "checksum": "f09046fd7356def508707f00f1fb794b",
+        "timestamp": "2026-08-30T13:42:32Z"
+      }
+    ]
+  }
+]

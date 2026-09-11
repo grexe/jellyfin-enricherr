@@ -168,7 +168,7 @@ This uses Jellyfin's normal install/update mechanism instead of manual file copy
 3. In Jellyfin: **Dashboard → Plugins → Repositories → Add Repository**, using this
    raw URL:
    ```
-   https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/manifest.json
+   https://kino.sen-labs.org/jellyfin
    ```
 4. **Dashboard → Plugins → Catalog** should now list "Jellyfin Enricherr" - install it
    from there. Future `package.sh` + manifest update + push cycles show up as a normal

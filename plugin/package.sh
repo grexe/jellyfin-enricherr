@@ -40,6 +40,17 @@ ZIP_PATH="dist/${ZIP_NAME}"
 CHECKSUM="$(md5 -q "$ZIP_PATH" 2>/dev/null || md5sum "$ZIP_PATH" | cut -d' ' -f1)"
 TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
+# Mirrors manifest.json to docs/jellyfin (no extension - GitHub Pages serves it
+# as-is) so kino.sen-labs.org/jellyfin is a short, branded repository URL people
+# can add in Jellyfin instead of the raw githubusercontent.com path. Not a real
+# HTTP redirect (Jellyfin's fetch can't tell the difference either way) - chosen
+# specifically to avoid needing kino's DNS record switched to Cloudflare-proxied,
+# which would risk the GitHub Pages HTTPS cert that took real effort to get
+# working. IMPORTANT: this copies manifest.json's CURRENT content, so update
+# manifest.json's versions array with this release's entry BEFORE running this
+# script, not after - copying stale content here is a silent miss, not an error.
+cp manifest.json ../docs/jellyfin
+
 echo
 echo "Built: $ZIP_PATH"
 echo "Checksum (MD5): $CHECKSUM"
