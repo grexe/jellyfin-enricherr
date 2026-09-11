@@ -153,15 +153,18 @@ public class MissingMetadataMatcher
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning("  > Metadata search for \"{Title}\" ({Year}) failed: {Error}", attempt.Title, attemptYearLabel, ex.Message);
+                _logger.LogWarning("  > Metadata search for {Title} ({Year}) failed: {Error}", attempt.Title, attemptYearLabel, ex.Message);
                 continue;
             }
 
             _logger.LogInformation(
-                "  > Searching metadata for \"{Title}\" ({Year}) -> {Count} result(s).",
+                "  > Searching metadata for {Title} ({Year}) -> {Count} result(s): {Results}.",
                 attempt.Title,
                 attemptYearLabel,
-                attemptResults.Count);
+                attemptResults.Count,
+                attemptResults.Count == 0
+                    ? "none"
+                    : string.Join(", ", attemptResults.Select(r => $"{r.Name} ({r.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year"}, via {r.SearchProviderName})")));
 
             foreach (var r in attemptResults)
             {
@@ -188,19 +191,20 @@ public class MissingMetadataMatcher
             if (closest.Result is null)
             {
                 _logger.LogInformation(
-                    "  > No confident metadata match for \"{Title}\" ({Year}) - every search came back empty - leaving unmatched.",
+                    "  > No confident metadata match for {Title} ({Year}) - every search came back empty - leaving unmatched.",
                     candidateTitle,
                     candidateYear ?? "unknown year");
             }
             else
             {
                 _logger.LogInformation(
-                    "  > No confident metadata match for \"{Title}\" ({Year}) among {Count} candidate(s) - closest was \"{ClosestName}\" ({ClosestYear}, {Similarity:P0} title similarity) - leaving unmatched.",
+                    "  > No confident metadata match for {Title} ({Year}) among {Count} candidate(s) - closest was {ClosestName} ({ClosestYear}, via {Provider}, {Similarity:P0} title similarity) - leaving unmatched.",
                     candidateTitle,
                     candidateYear ?? "unknown year",
                     results.Count,
                     closest.Result.Name,
                     closest.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year",
+                    closest.Result.SearchProviderName,
                     closest.Similarity);
             }
 
@@ -219,7 +223,7 @@ public class MissingMetadataMatcher
                     if (Math.Abs(localMinutes - candidateRuntimeMinutes.Value) > RuntimeToleranceMinutes)
                     {
                         _logger.LogInformation(
-                            "  > Found a title/year match (\"{MatchName}\", {Similarity:P0} similar) for \"{Title}\", but its runtime ({CandidateMinutes:F1} min) doesn't match the local file ({LocalMinutes:F1} min) - not applying.",
+                            "  > Found a title/year match ({MatchName}, {Similarity:P0} similar) for {Title}, but its runtime ({CandidateMinutes:F1} min) doesn't match the local file ({LocalMinutes:F1} min) - not applying.",
                             best.Result.Name,
                             best.Similarity,
                             candidateTitle,
@@ -231,7 +235,7 @@ public class MissingMetadataMatcher
                 else
                 {
                     _logger.LogInformation(
-                        "  > Could not determine {Provider}'s claimed runtime for \"{MatchName}\" - applying the match on title/year confidence alone.",
+                        "  > Could not determine {Provider}'s claimed runtime for {MatchName} - applying the match on title/year confidence alone.",
                         best.Result.SearchProviderName,
                         best.Result.Name);
                 }
@@ -252,7 +256,7 @@ public class MissingMetadataMatcher
         {
             await _providerManager.RefreshSingleItem(movie, refreshOptions, cancellationToken).ConfigureAwait(false);
             _logger.LogInformation(
-                "  > Applied metadata match: \"{Title}\" -> \"{MatchName}\" ({Year}, via {Provider}, {Similarity:P0} title similarity).",
+                "  > Applied metadata match: {Title} -> {MatchName} ({Year}, via {Provider}, {Similarity:P0} title similarity).",
                 candidateTitle,
                 best.Result.Name,
                 best.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year",
@@ -262,7 +266,7 @@ public class MissingMetadataMatcher
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning("  > Failed to apply metadata match for \"{Title}\": {Error}", candidateTitle, ex.Message);
+            _logger.LogWarning("  > Failed to apply metadata match for {Title}: {Error}", candidateTitle, ex.Message);
             return false;
         }
     }
@@ -310,7 +314,7 @@ public class MissingMetadataMatcher
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(
-                "  > Could not fetch full metadata for candidate \"{Name}\" from {Provider}: {Error}",
+                "  > Could not fetch full metadata for candidate {Name} from {Provider}: {Error}",
                 candidate.Name,
                 candidate.SearchProviderName,
                 ex.Message);

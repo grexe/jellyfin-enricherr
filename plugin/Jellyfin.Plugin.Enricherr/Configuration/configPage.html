@@ -436,6 +436,26 @@
                 return rows;
             }
 
+            // A text-cycling spinner (no CSS @keyframes) next to whichever library
+            // row is currently being processed on the "Current run" tab - deliberately
+            // not a <style>-block animation, since Jellyfin's dashboard injects only
+            // this page's <body> into the app shell, silently dropping its own <head>
+            // (see the inline-styling notes elsewhere in this file for the same
+            // reason). One persistent interval re-queries the spinner element(s) on
+            // every tick instead of the table's own re-render owning the animation -
+            // renderStatsTable rebuilds the whole table (and so a fresh, frame-0
+            // spinner span) on every call, but this interval keeps advancing whatever
+            // spinner element(s) currently exist regardless, and is naturally a no-op
+            // when none are in the DOM (a different tab is active, or no run is live).
+            var spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            var spinnerFrameIndex = 0;
+            setInterval(function () {
+                spinnerFrameIndex = (spinnerFrameIndex + 1) % spinnerFrames.length;
+                document.querySelectorAll('.enricherr-spinner').forEach(function (el) {
+                    el.textContent = spinnerFrames[spinnerFrameIndex];
+                });
+            }, 150);
+
             // Renders the "Library | Items | Trailers | Theme songs" table shared by
             // both Statistics tabs - "Last run" (Movies/TV series, from the last run's
             // own numbers) and "Overall" (one row per actual Jellyfin library, always
@@ -471,6 +491,14 @@
                     var nameCell = document.createElement('td');
                     nameCell.textContent = row.name;
                     styleTableCell(nameCell);
+                    if (row.inProgress) {
+                        var spinner = document.createElement('span');
+                        spinner.className = 'enricherr-spinner';
+                        spinner.style.marginLeft = '0.5em';
+                        spinner.style.display = 'inline-block';
+                        spinner.textContent = spinnerFrames[0];
+                        nameCell.appendChild(spinner);
+                    }
                     tr.appendChild(nameCell);
 
                     var itemsCell = document.createElement('td');
@@ -836,7 +864,8 @@
                         name: lib.name,
                         items: lib.items,
                         trailers: lib.trailers === null ? 'n/a' : lib.trailers,
-                        themeSongs: lib.themeSongs === null ? 'n/a' : lib.themeSongs
+                        themeSongs: lib.themeSongs === null ? 'n/a' : lib.themeSongs,
+                        inProgress: lib.name === liveProgress.currentLibrary
                     };
                 });
                 if (activeStatsTab === 'current') {
@@ -876,8 +905,19 @@
                         return;
                     }
 
+                    var wasAlreadyShowingLive = isShowingLiveProgress;
                     isShowingLiveProgress = true;
                     renderLiveProgress(liveProgress);
+
+                    // Jump to "Current run" the moment a run is first detected as
+                    // active - whether that's on page load while one's already
+                    // running, or one starting while this page is already open - but
+                    // only on that transition, so it doesn't keep yanking the view
+                    // back if the admin deliberately switches to a different tab
+                    // while a run is still going.
+                    if (!wasAlreadyShowingLive && activeStatsTab !== 'current') {
+                        setActiveStatsTab('current');
+                    }
                 }).catch(function () {
                     // Best-effort - a single failed poll just waits for the next tick
                     // rather than disrupting whatever's currently on screen.
