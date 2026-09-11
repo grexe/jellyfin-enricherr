@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Jellyfin Enricherr — Jellyfin Plugin</title>
-<meta name="description" content="A Jellyfin plugin that finds and downloads missing local trailers for movies and TV series from YouTube.">
+<meta name="description" content="A Jellyfin plugin that finds and downloads missing local trailers and theme songs for movies and TV series, and cleans up messy release-style folder/file names.">
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -28,9 +28,13 @@
   <div class="hero">
     <img src="assets/logo.png" alt="Jellyfin Enricherr logo">
     <h1>Jellyfin Enricherr</h1>
-    <p>A Jellyfin plugin that finds and downloads missing local trailers for movies and TV series from YouTube.</p>
+    <p>A Jellyfin plugin that finds and downloads missing local trailers and theme songs for movies and TV
+    series, and cleans up messy release-style folder/file names.</p>
     <p style="margin-top: 1.5rem;"><a class="btn" href="installation.html">Install it →</a></p>
   </div>
+
+  <img class="screenshot" src="assets/screenshots/stats-overall.png"
+    alt="Statistics table showing library-wide trailer and theme song coverage, with tinted percentage bars">
 
   <p class="lede">
     Jellyfin Enricherr runs as a scheduled task inside your Jellyfin server. For every movie or series without a
@@ -84,6 +88,11 @@
       <p>Fetches each item's theme song too, sourced from ThemerrDB (the same database
       <a href="https://github.com/LizardByte/Themerr-jellyfin">Themerr</a> uses) and downloaded through this
       plugin's own hardened pipeline instead.</p>
+    </div>
+    <div class="card">
+      <h3>Clean folder/file names</h3>
+      <p>Can rename movie files and series/season folders to their resolved title, fixing messy release-style
+      names that confuse Jellyfin's own poster match and displayed title even when search itself works fine.</p>
     </div>
   </div>
 

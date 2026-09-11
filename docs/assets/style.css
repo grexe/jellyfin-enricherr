@@ -303,3 +303,17 @@ footer {
   text-decoration: none;
   opacity: 0.9;
 }
+
+.screenshot {
+  display: block;
+  width: 100%;
+  max-width: 700px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  margin: 1.25rem auto;
+}
+
+.screenshot.inline {
+  margin: 0.75rem 0;
+}
