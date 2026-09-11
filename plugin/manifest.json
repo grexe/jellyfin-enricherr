@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png",
     "versions": [
       {
+        "version": "1.1.0.1",
+        "changelog": "Fixed a confusing statistics display: the run date/duration/stop-reason header (and its \"Details\" breakdown) is specifically about the last run, but stayed visible above the table even while viewing the \"Overall\" tab - showing \"No run yet.\" directly above a fully populated library-wide table. Now hidden while \"Overall\" is active, shown again when switching back to \"Last run\" (the Details button's own open/closed state is preserved either way).",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.0.1.zip",
+        "checksum": "93fb2e41619a42b53a70d7695b4b58af",
+        "timestamp": "2026-09-11T10:48:05Z"
+      },
+      {
         "version": "1.1.0.0",
         "changelog": "New feature: a \"Show setting descriptions\" checkbox at the top of the page (on by default) hides every per-setting explanation, leaving just the controls - the docs site already covers each one in more detail, and the inline text made for cluttered screenshots. Only genuine per-setting help text is affected; status/content displays that happen to reuse the same styling (the statistics table, the last-run summary, the cookies status line) are unaffected. Client-side only, not persisted - resets to shown on every page load.",
         "targetAbi": "10.11.0.0",
