@@ -123,7 +123,14 @@ public class MissingMetadataMatcher
             searchAttempts.Add((searchTitles[^1], false));
         }
 
+        // Every attempt is tried and pooled, rather than stopping at the first one
+        // that returns anything - confirmed live: a year-filtered search can come
+        // back with exactly one (wrong, or merely below threshold) candidate, which
+        // would otherwise stop the loop before the broader/year-less attempt - the
+        // one actually likely to surface the real match - ever runs. Deduplicated by
+        // name+year, since the same real candidate often reappears across attempts.
         var results = new System.Collections.Generic.List<RemoteSearchResult>();
+        var seenCandidates = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         foreach (var attempt in searchAttempts)
         {
             var query = new RemoteSearchQuery<MovieInfo>
@@ -137,36 +144,66 @@ public class MissingMetadataMatcher
                 }
             };
 
+            var attemptYearLabel = attempt.IncludeYear && year is not null ? year.Value.ToString(CultureInfo.InvariantCulture) : "no year";
+
+            System.Collections.Generic.List<RemoteSearchResult> attemptResults;
             try
             {
-                results = (await _providerManager.GetRemoteSearchResults<Movie, MovieInfo>(query, cancellationToken).ConfigureAwait(false)).ToList();
+                attemptResults = (await _providerManager.GetRemoteSearchResults<Movie, MovieInfo>(query, cancellationToken).ConfigureAwait(false)).ToList();
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning("  > Metadata search for \"{Title}\" failed: {Error}", attempt.Title, ex.Message);
+                _logger.LogWarning("  > Metadata search for \"{Title}\" ({Year}) failed: {Error}", attempt.Title, attemptYearLabel, ex.Message);
                 continue;
             }
 
-            if (results.Count > 0)
+            _logger.LogInformation(
+                "  > Searching metadata for \"{Title}\" ({Year}) -> {Count} result(s).",
+                attempt.Title,
+                attemptYearLabel,
+                attemptResults.Count);
+
+            foreach (var r in attemptResults)
             {
-                break;
+                if (seenCandidates.Add(r.Name + "|" + r.ProductionYear))
+                {
+                    results.Add(r);
+                }
             }
         }
 
-        var best = results
+        var scored = results
             .Select(r => (Result: r, Similarity: Levenshtein.TitleSimilarity(candidateTitle, r.Name)))
+            .OrderByDescending(r => r.Similarity)
+            .ToList();
+
+        var best = scored
             .Where(r => r.Similarity >= TitleSimilarityThreshold)
             .Where(r => year is null || r.Result.ProductionYear is null || Math.Abs(r.Result.ProductionYear.Value - year.Value) <= YearToleranceYears)
-            .OrderByDescending(r => r.Similarity)
             .FirstOrDefault();
 
         if (best.Result is null)
         {
-            _logger.LogInformation(
-                "  > No confident metadata match for \"{Title}\" ({Year}) among {Count} search result(s) - leaving unmatched.",
-                candidateTitle,
-                candidateYear ?? "unknown year",
-                results.Count);
+            var closest = scored.FirstOrDefault();
+            if (closest.Result is null)
+            {
+                _logger.LogInformation(
+                    "  > No confident metadata match for \"{Title}\" ({Year}) - every search came back empty - leaving unmatched.",
+                    candidateTitle,
+                    candidateYear ?? "unknown year");
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "  > No confident metadata match for \"{Title}\" ({Year}) among {Count} candidate(s) - closest was \"{ClosestName}\" ({ClosestYear}, {Similarity:P0} title similarity) - leaving unmatched.",
+                    candidateTitle,
+                    candidateYear ?? "unknown year",
+                    results.Count,
+                    closest.Result.Name,
+                    closest.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year",
+                    closest.Similarity);
+            }
+
             return false;
         }
 

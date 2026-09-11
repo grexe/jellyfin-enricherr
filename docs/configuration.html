@@ -38,9 +38,11 @@
     <p>Not a setting — a table with three tabs:</p>
     <table>
       <tr><th>Current run</th><td>Shown only while a run is actively in progress - a live-updating view
-        (refreshed every few seconds) of which library is currently being processed and the same coverage
-        numbers building up in real time, so there's no need to wait for the run to finish or dig through
-        the log to see progress. Shows "No run currently in progress" the rest of the time.</td></tr>
+        (refreshed every few seconds), one row per library in scope for the run (not just the one currently
+        being processed), with coverage numbers building up in real time. A library not reached yet shows
+        "n/a" rather than a bare 0, so the full scope of the run is visible from the start instead of
+        libraries only appearing as the run reaches them. No need to wait for the run to finish or dig
+        through the log to see progress. Shows "No run currently in progress" the rest of the time.</td></tr>
       <tr><th>Last run</th><td>Movies and TV series as two rows, from the last <em>completed</em> run's own
         numbers - untouched by whatever a currently-in-progress run is doing. Shows the run's date, duration,
         and how it ended, with a <strong>Details</strong> toggle for the full per-run breakdown - how many

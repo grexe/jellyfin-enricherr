@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.5.0.0",
+        "changelog": "Two improvements found live while testing missing-metadata search. (1) The search loop stopped at the first attempt that returned ANY result, even a single wrong/below-threshold one - meaning a year-filtered search returning one irrelevant candidate meant the broader year-less attempt (the one actually likely to surface the real match) never ran at all. Every attempt (full title, archive-suffix-stripped title, each with and without year) is now tried and pooled together (deduplicated by name+year) before scoring. Each attempt's own query and result count is now logged too, and the \"no confident match\" line names the closest candidate found and its title-similarity score instead of just a bare count - makes it possible to tell whether a rejection was a title mismatch, a year mismatch, or genuinely nothing found. (2) The \"Current run\" live-progress tab now shows one row per library in scope for the run - not just the one currently being processed - with a library not reached yet showing \"n/a\" instead of being left out of the table entirely, so the full scope of the run is visible from the start.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.5.0.0.zip",
+        "checksum": "ef3235a8eb6884903bac733ead33aa18",
+        "timestamp": "2026-09-11T20:52:23Z"
+      },
+      {
         "version": "1.4.1.2",
         "changelog": "Fixed another gap in the archive-catalog-number stripping used for the missing-metadata search query, found live: the pattern only handled exactly two hyphen-attached digit groups (\"-052393-000-A\"), but one real file's catalog id had an extra leading digit group AND was space- (not hyphen-) attached to the title (\"29, bald 45-039221-004-A\" - the id is \"45-039221-004-A\" as a whole) - the old pattern missed it entirely, leaving a stray \"45\" in the search query. Generalized to match two or more hyphen-terminated digit groups after either a space or a hyphen, verified against every real example seen live plus normal titles (including ones starting with a digit, e.g. \"12 Monkeys\") to confirm it still leaves those alone.",
         "targetAbi": "10.11.0.0",

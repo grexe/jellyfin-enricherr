@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -6,10 +7,24 @@ using System.Text.Json.Serialization;
 namespace Jellyfin.Plugin.Enricherr.Services;
 
 /// <summary>
+/// One library's row in the live-progress table - the same shape as the "Overall"
+/// tab's per-library rows (name/items/trailers/themeSongs), so the settings page can
+/// render both through the same table code. <see cref="Trailers"/>/
+/// <see cref="ThemeSongs"/> are null for a library this run hasn't reached yet
+/// (rendered client-side as "n/a", not a bare 0 - a library not started is not the
+/// same as one genuinely found to have zero coverage).
+/// </summary>
+public record LiveProgressLibraryRow(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("items")] int Items,
+    [property: JsonPropertyName("trailers")] int? Trailers,
+    [property: JsonPropertyName("themeSongs")] int? ThemeSongs);
+
+/// <summary>
 /// A snapshot of an in-progress "Fetch Missing Trailers" run, for the settings page to
-/// poll and show live - the same shape of counts as <see cref="RunSummary"/> (so the
-/// page can reuse its existing rendering), plus which library is currently being
-/// processed and how far through the whole run this snapshot was taken.
+/// poll and show live - one row per library in scope for this run (not just the one
+/// currently being processed), plus which library is currently being processed and
+/// how far through the whole run this snapshot was taken.
 /// </summary>
 public record LiveProgress(
     [property: JsonPropertyName("startedAtUtc")] DateTime StartedAtUtc,
@@ -19,32 +34,7 @@ public record LiveProgress(
     [property: JsonPropertyName("itemsProcessed")] int ItemsProcessed,
     [property: JsonPropertyName("totalItems")] int TotalItems,
     [property: JsonPropertyName("dryRun")] bool DryRun,
-    [property: JsonPropertyName("totalMovies")] int TotalMovies,
-    [property: JsonPropertyName("scanned")] int Scanned,
-    [property: JsonPropertyName("alreadyHadTrailer")] int AlreadyHadTrailer,
-    [property: JsonPropertyName("downloaded")] int Downloaded,
-    [property: JsonPropertyName("notFound")] int NotFound,
-    [property: JsonPropertyName("skipped")] int Skipped,
-    [property: JsonPropertyName("renamed")] int Renamed,
-    [property: JsonPropertyName("migrated")] int Migrated,
-    [property: JsonPropertyName("totalSeries")] int TotalSeries,
-    [property: JsonPropertyName("seriesScanned")] int SeriesScanned,
-    [property: JsonPropertyName("seriesAlreadyHadTrailer")] int SeriesAlreadyHadTrailer,
-    [property: JsonPropertyName("seriesDownloaded")] int SeriesDownloaded,
-    [property: JsonPropertyName("seriesNotFound")] int SeriesNotFound,
-    [property: JsonPropertyName("seriesSkipped")] int SeriesSkipped,
-    [property: JsonPropertyName("moviesScanStarted")] bool MoviesScanStarted,
-    [property: JsonPropertyName("seriesScanStarted")] bool SeriesScanStarted,
-    [property: JsonPropertyName("upgraded")] int Upgraded,
-    [property: JsonPropertyName("seriesUpgraded")] int SeriesUpgraded,
-    [property: JsonPropertyName("themeSongAlreadyHad")] int ThemeSongAlreadyHad,
-    [property: JsonPropertyName("themeSongDownloaded")] int ThemeSongDownloaded,
-    [property: JsonPropertyName("themeSongNotFound")] int ThemeSongNotFound,
-    [property: JsonPropertyName("seriesThemeSongAlreadyHad")] int SeriesThemeSongAlreadyHad,
-    [property: JsonPropertyName("seriesThemeSongDownloaded")] int SeriesThemeSongDownloaded,
-    [property: JsonPropertyName("seriesThemeSongNotFound")] int SeriesThemeSongNotFound,
-    [property: JsonPropertyName("seriesRenamed")] int SeriesRenamed,
-    [property: JsonPropertyName("seriesSeasonsRenamed")] int SeriesSeasonsRenamed);
+    [property: JsonPropertyName("libraries")] List<LiveProgressLibraryRow> Libraries);
 
 /// <summary>
 /// Persists a periodically-updated snapshot of the currently-running "Fetch Missing

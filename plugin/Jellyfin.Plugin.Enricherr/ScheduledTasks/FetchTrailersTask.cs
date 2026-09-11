@@ -181,6 +181,19 @@ public class FetchTrailersTask : IScheduledTask
         var renamedBeforeByLibrary = new int[libraryBatches.Count];
         var migratedBeforeByLibrary = new int[libraryBatches.Count];
 
+        // Coverage (not just this-run activity) per library, for the live-progress
+        // "Current run" table - shows every selected library up front, not just the
+        // one currently being worked on. *Before counts capture the starting point
+        // so an in-progress library's growing coverage can be computed on demand;
+        // *AfterCoverage is filled in exactly once, when that library's own phases
+        // finish, so a completed library's numbers stay frozen afterward rather than
+        // (wrongly) drifting as later libraries are processed and the global stats
+        // keep changing. Null in *AfterCoverage means "not finished yet".
+        var trailersCoverageBeforeByLibrary = new int[libraryBatches.Count];
+        var themeSongsCoverageBeforeByLibrary = new int[libraryBatches.Count];
+        var trailersAfterCoverageByLibrary = new int?[libraryBatches.Count];
+        var themeSongsAfterCoverageByLibrary = new int?[libraryBatches.Count];
+
         // There's no reliable way to know when YouTube's own rate limit actually
         // lifts (its own message only states an upper bound), so on the first hit
         // this waits once and resumes the SAME run from wherever it stopped (the
@@ -205,6 +218,8 @@ public class FetchTrailersTask : IScheduledTask
                         themeSongsBeforeByLibrary[libraryIndex] = stats.ThemeSongDownloaded + stats.SeriesThemeSongDownloaded;
                         renamedBeforeByLibrary[libraryIndex] = stats.Renamed + stats.SeriesRenamed + stats.SeriesSeasonsRenamed;
                         migratedBeforeByLibrary[libraryIndex] = stats.Migrated;
+                        trailersCoverageBeforeByLibrary[libraryIndex] = stats.AlreadyHadTrailer + stats.Downloaded + stats.SeriesAlreadyHadTrailer + stats.SeriesDownloaded;
+                        themeSongsCoverageBeforeByLibrary[libraryIndex] = stats.ThemeSongAlreadyHad + stats.ThemeSongDownloaded + stats.SeriesThemeSongAlreadyHad + stats.SeriesThemeSongDownloaded;
                         librarySnapshotTaken[libraryIndex] = true;
                     }
 
@@ -215,7 +230,19 @@ public class FetchTrailersTask : IScheduledTask
                         await ProcessMovieAsync(batch.Movies[movieIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
                         itemsProcessedSoFar++;
                         progress.Report(itemsProcessedSoFar * 100.0 / totalItems);
-                        SaveLiveProgressIfDue(ref lastLiveProgressWrite, stats, batch.LibraryItem.Name, libraryIndex, libraryBatches.Count, itemsProcessedSoFar, totalItems, totalMovies, totalSeries, config.DryRun, startedAt);
+                        SaveLiveProgressIfDue(
+                            ref lastLiveProgressWrite,
+                            stats,
+                            libraryBatches,
+                            libraryIndex,
+                            trailersCoverageBeforeByLibrary,
+                            themeSongsCoverageBeforeByLibrary,
+                            trailersAfterCoverageByLibrary,
+                            themeSongsAfterCoverageByLibrary,
+                            itemsProcessedSoFar,
+                            totalItems,
+                            config.DryRun,
+                            startedAt);
 
                         // A movie/series that completes without hitting the rate limit
                         // again is proof the limit actually lifted, not just that we got
@@ -236,11 +263,30 @@ public class FetchTrailersTask : IScheduledTask
                         await ProcessSeriesAsync(batch.Series[seriesIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
                         itemsProcessedSoFar++;
                         progress.Report(itemsProcessedSoFar * 100.0 / totalItems);
-                        SaveLiveProgressIfDue(ref lastLiveProgressWrite, stats, batch.LibraryItem.Name, libraryIndex, libraryBatches.Count, itemsProcessedSoFar, totalItems, totalMovies, totalSeries, config.DryRun, startedAt);
+                        SaveLiveProgressIfDue(
+                            ref lastLiveProgressWrite,
+                            stats,
+                            libraryBatches,
+                            libraryIndex,
+                            trailersCoverageBeforeByLibrary,
+                            themeSongsCoverageBeforeByLibrary,
+                            trailersAfterCoverageByLibrary,
+                            themeSongsAfterCoverageByLibrary,
+                            itemsProcessedSoFar,
+                            totalItems,
+                            config.DryRun,
+                            startedAt);
                         hasRetriedRateLimit = false;
                     }
 
                     seriesIndex = 0;
+
+                    // Freeze this library's final coverage now that it's done, for
+                    // the live-progress table - computed once here rather than on
+                    // demand later, since later libraries' own processing keeps
+                    // changing the global stats this is derived from.
+                    trailersAfterCoverageByLibrary[libraryIndex] = stats.AlreadyHadTrailer + stats.Downloaded + stats.SeriesAlreadyHadTrailer + stats.SeriesDownloaded;
+                    themeSongsAfterCoverageByLibrary[libraryIndex] = stats.ThemeSongAlreadyHad + stats.ThemeSongDownloaded + stats.SeriesThemeSongAlreadyHad + stats.SeriesThemeSongDownloaded;
 
                     if (config.TriggerLibraryScan && !config.DryRun)
                     {
@@ -350,18 +396,23 @@ public class FetchTrailersTask : IScheduledTask
     /// called after every single movie/series, so writing on every one of them
     /// (thousands, in a large library, most just "already has a trailer" skips taking
     /// a few milliseconds each) would be needless disk I/O for updates nobody's
-    /// watching that quickly anyway.
+    /// watching that quickly anyway. Reports every library in scope, not just the one
+    /// currently being processed - a library not yet reached gets null
+    /// trailers/theme-song counts (rendered as "n/a" client-side) rather than being
+    /// left out of the table entirely, so the admin can see the full scope of the run
+    /// up front instead of libraries only appearing as the run reaches them.
     /// </summary>
     private static void SaveLiveProgressIfDue(
         ref DateTime lastWrite,
         TrailerFetchStats stats,
-        string currentLibrary,
-        int libraryIndex,
-        int libraryCount,
+        List<LibraryBatch> libraryBatches,
+        int currentLibraryIndex,
+        int[] trailersCoverageBeforeByLibrary,
+        int[] themeSongsCoverageBeforeByLibrary,
+        int?[] trailersAfterCoverageByLibrary,
+        int?[] themeSongsAfterCoverageByLibrary,
         int itemsProcessed,
         int totalItems,
-        int totalMovies,
-        int totalSeries,
         bool dryRun,
         DateTime startedAt)
     {
@@ -372,42 +423,49 @@ public class FetchTrailersTask : IScheduledTask
         }
 
         lastWrite = now;
+
+        var currentTrailersCoverage = stats.AlreadyHadTrailer + stats.Downloaded + stats.SeriesAlreadyHadTrailer + stats.SeriesDownloaded;
+        var currentThemeSongsCoverage = stats.ThemeSongAlreadyHad + stats.ThemeSongDownloaded + stats.SeriesThemeSongAlreadyHad + stats.SeriesThemeSongDownloaded;
+
+        var libraries = new List<LiveProgressLibraryRow>();
+        for (var i = 0; i < libraryBatches.Count; i++)
+        {
+            var batch = libraryBatches[i];
+            int? trailers;
+            int? themeSongs;
+            if (i < currentLibraryIndex)
+            {
+                // Already finished - frozen totals captured when it completed.
+                trailers = trailersAfterCoverageByLibrary[i];
+                themeSongs = themeSongsAfterCoverageByLibrary[i];
+            }
+            else if (i == currentLibraryIndex)
+            {
+                // In progress - live delta against this library's own starting point.
+                trailers = currentTrailersCoverage - trailersCoverageBeforeByLibrary[i];
+                themeSongs = currentThemeSongsCoverage - themeSongsCoverageBeforeByLibrary[i];
+            }
+            else
+            {
+                // Not reached yet this run.
+                trailers = null;
+                themeSongs = null;
+            }
+
+            libraries.Add(new LiveProgressLibraryRow(batch.LibraryItem.Name, batch.Movies.Count + batch.Series.Count, trailers, themeSongs));
+        }
+
         LiveProgressStore.Save(
             Plugin.Instance!.DataFolderPath,
             new LiveProgress(
                 startedAt,
-                currentLibrary,
-                libraryIndex + 1,
-                libraryCount,
+                libraryBatches[currentLibraryIndex].LibraryItem.Name,
+                currentLibraryIndex + 1,
+                libraryBatches.Count,
                 itemsProcessed,
                 totalItems,
                 dryRun,
-                totalMovies,
-                stats.Scanned,
-                stats.AlreadyHadTrailer,
-                stats.Downloaded,
-                stats.NotFound,
-                stats.Skipped,
-                stats.Renamed,
-                stats.Migrated,
-                totalSeries,
-                stats.SeriesScanned,
-                stats.SeriesAlreadyHadTrailer,
-                stats.SeriesDownloaded,
-                stats.SeriesNotFound,
-                stats.SeriesSkipped,
-                stats.MoviePhaseStarted,
-                stats.SeriesPhaseStarted,
-                stats.Upgraded,
-                stats.SeriesUpgraded,
-                stats.ThemeSongAlreadyHad,
-                stats.ThemeSongDownloaded,
-                stats.ThemeSongNotFound,
-                stats.SeriesThemeSongAlreadyHad,
-                stats.SeriesThemeSongDownloaded,
-                stats.SeriesThemeSongNotFound,
-                stats.SeriesRenamed,
-                stats.SeriesSeasonsRenamed));
+                libraries));
     }
 
     private sealed record LibraryBatch(BaseItem LibraryItem, List<Movie> Movies, List<Series> Series);

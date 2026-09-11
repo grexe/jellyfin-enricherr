@@ -825,7 +825,20 @@
                     liveProgress.itemsProcessed + '/' + liveProgress.totalItems + ' items (' + pct + '%) - ' +
                     formatDuration(elapsedSeconds) + ' elapsed' + (liveProgress.dryRun ? ' - dry run' : '')));
 
-                statsData.current = buildStatsRows(liveProgress);
+                // One row per library in scope for this run, not just the one
+                // currently being processed - a library not reached yet has null
+                // trailers/themeSongs (server-side), rendered here as "n/a" so it's
+                // visibly "not started" rather than indistinguishable from a genuine
+                // zero. renderStatsTable already treats any non-number cell value as
+                // plain text (no coverage bar), which "n/a" falls into naturally.
+                statsData.current = liveProgress.libraries.map(function (lib) {
+                    return {
+                        name: lib.name,
+                        items: lib.items,
+                        trailers: lib.trailers === null ? 'n/a' : lib.trailers,
+                        themeSongs: lib.themeSongs === null ? 'n/a' : lib.themeSongs
+                    };
+                });
                 if (activeStatsTab === 'current') {
                     renderStatsTable(statsData.current);
                 }
