@@ -490,7 +490,11 @@ public class FetchTrailersTask : IScheduledTask
 
         if (stats.LastDir != folderPath)
         {
-            _logger.LogInformation("*** Entering directory: {Dir}", PathDisplay.Relative(folderPath, libraryRoot));
+            if (stats.VisitedDirs.Add(folderPath))
+            {
+                _logger.LogInformation("*** Entering directory: {Dir}", PathDisplay.Relative(folderPath, libraryRoot));
+            }
+
             stats.LastDir = folderPath;
         }
 
@@ -1389,6 +1393,17 @@ public class FetchTrailersTask : IScheduledTask
     private sealed class TrailerFetchStats
     {
         public string? LastDir { get; set; }
+
+        // Confirmed live: movies are processed in alphabetical-by-title order, not
+        // grouped by folder - a not-yet-migrated movie sitting directly in a shared
+        // flat library folder ("Movies") can alphabetically fall between two other
+        // movies that already have their own dedicated folders, so the shared flat
+        // folder gets revisited many times throughout a run, not just once. Comparing
+        // only against the *immediately previous* item's folder made every one of
+        // those revisits log "*** Entering directory" as if it were being seen for
+        // the first time - tracking every folder actually seen this run instead means
+        // a genuine revisit is silently skipped rather than misreported as new.
+        public HashSet<string> VisitedDirs { get; } = new(StringComparer.Ordinal);
 
         public int Scanned { get; set; }
 

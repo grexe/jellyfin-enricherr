@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.3.0.2",
+        "changelog": "Fixed a misleading log line found live: movies are processed in alphabetical-by-title order, not grouped by folder, so a not-yet-migrated movie sitting directly in a shared flat library folder can alphabetically fall between two other movies that already have their own dedicated folders - the shared flat folder was getting revisited many times throughout a run, and each revisit logged \"*** Entering directory\" as if it were being seen for the first time (it was only ever compared against the immediately previous item's folder). Now tracks every folder actually seen so far this run, so a genuine revisit is silently skipped instead of misreported as a fresh entry.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.3.0.2.zip",
+        "checksum": "3266086d261337328f6a9e8c9bc3355e",
+        "timestamp": "2026-09-11T15:46:32Z"
+      },
+      {
         "version": "1.3.0.1",
         "changelog": "Fixed stale in-app help text: \"Trigger a library scan after changes\" still described 1.1.x's single end-of-run scan behavior - updated to describe 1.2.0.0's actual per-library scan timing (the external docs site was updated for this in 1.2.0.0, but this same text inside the settings page itself was missed).",
         "targetAbi": "10.11.0.0",
