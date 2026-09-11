@@ -19,6 +19,10 @@
                     <div class="verticalSection">
                         <h3 style="font-size: 1.2em; font-weight: 700; margin: 0 0 0.75em; padding-bottom: 0.35em; border-bottom: 1px solid rgba(128, 128, 128, 0.35);">Statistics</h3>
                         <div style="padding-left: 1.25em;">
+                            <div id="CurrentRunOnlyContainer" style="display:none;">
+                                <div id="CurrentRunHeader" class="fieldDescription">No run currently in progress.</div>
+                            </div>
+
                             <div id="LastRunOnlyContainer">
                                 <div id="LastRunSummaryHeader" class="fieldDescription">Loading&hellip;</div>
                                 <button is="emby-button" type="button" id="LastRunDetailsToggle" class="raised button-cancel block emby-button" style="margin-top: 0.5em;">
@@ -28,6 +32,7 @@
                             </div>
 
                             <div style="margin-top: 1.5em; display: flex; gap: 0.5em;">
+                                <button is="emby-button" type="button" id="StatsTabCurrent" class="raised button-cancel emby-button">Current run</button>
                                 <button is="emby-button" type="button" id="StatsTabLastRun" class="raised button-cancel emby-button">Last run</button>
                                 <button is="emby-button" type="button" id="StatsTabOverall" class="raised button-cancel emby-button">Overall</button>
                             </div>
@@ -312,16 +317,37 @@
                 pluginUniqueId: '04035fb7-8ca5-4bbf-a65b-7608c36e4e04'
             };
 
-            // Client-side only, not persisted to config - purely a viewing
-            // preference (the docs site already covers what every setting does in
-            // more detail, and a clean, description-free view is also just easier
-            // to screenshot). Resets to shown on every page load. Only the
-            // per-setting explanatory text is tagged .settingHelp - status/content
-            // displays that happen to reuse the same .fieldDescription styling
-            // (the stats table, the last-run summary, the cookies status line)
-            // deliberately aren't, so this never hides real content.
+            // A viewing preference, not a plugin setting - stored in this browser's
+            // localStorage (not the plugin config) rather than reset to shown on
+            // every page load, per feedback that always resetting was annoying to
+            // re-toggle on every visit. Only the per-setting explanatory text is
+            // tagged .settingHelp - status/content displays that happen to reuse the
+            // same .fieldDescription styling (the stats table, the last-run summary,
+            // the cookies status line) deliberately aren't, so this never hides real
+            // content.
+            var showHelpStorageKey = 'enricherr.showHelp';
+
+            function loadShowHelpPreference() {
+                try {
+                    var stored = window.localStorage.getItem(showHelpStorageKey);
+                    return stored === null ? true : stored === 'true';
+                } catch (err) {
+                    return true;
+                }
+            }
+
+            function saveShowHelpPreference(show) {
+                try {
+                    window.localStorage.setItem(showHelpStorageKey, show ? 'true' : 'false');
+                } catch (err) {
+                    // Private browsing / storage disabled - the toggle still works
+                    // for this page view, it just won't be remembered next time.
+                }
+            }
+
             function updateHelpTextVisibility() {
                 var show = document.querySelector('#ShowHelpToggle').checked;
+                saveShowHelpPreference(show);
                 document.querySelectorAll('.settingHelp').forEach(function (el) {
                     el.style.display = show ? '' : 'none';
                 });
@@ -331,7 +357,7 @@
             // currently shown. Populated independently by loadLastRunSummary() and
             // loadLibraryTotals() (each fetches its own data once), so switching tabs
             // is instant and doesn't need to re-fetch.
-            var statsData = { lastRun: null, overall: null };
+            var statsData = { current: null, lastRun: null, overall: null };
             var activeStatsTab = 'lastRun';
 
             // Styled entirely via inline styles rather than a <style> block or CSS
@@ -479,26 +505,28 @@
 
             function setActiveStatsTab(tab) {
                 activeStatsTab = tab;
+                var currentBtn = document.querySelector('#StatsTabCurrent');
                 var lastRunBtn = document.querySelector('#StatsTabLastRun');
                 var overallBtn = document.querySelector('#StatsTabOverall');
-                lastRunBtn.style.fontWeight = tab === 'lastRun' ? '700' : '400';
-                overallBtn.style.fontWeight = tab === 'overall' ? '700' : '400';
-                lastRunBtn.style.opacity = tab === 'lastRun' ? '1' : '0.6';
-                overallBtn.style.opacity = tab === 'overall' ? '1' : '0.6';
+                [[currentBtn, 'current'], [lastRunBtn, 'lastRun'], [overallBtn, 'overall']].forEach(function (pair) {
+                    pair[0].style.fontWeight = tab === pair[1] ? '700' : '400';
+                    pair[0].style.opacity = tab === pair[1] ? '1' : '0.6';
+                });
 
-                // The run date/duration/stop-reason header and its "Details"
-                // breakdown are specifically about the last run, not the library as
-                // a whole - showing "No run yet." right above a populated Overall
-                // table (which reflects the library's current state regardless of
-                // run history) read as contradictory. Hidden as one unit rather than
-                // toggled individually so the Details button's own open/closed state
+                // Each tab's own header/details area (the live-progress line, the
+                // last run's date/duration/stop-reason + Details breakdown) only
+                // makes sense for that specific tab - showing "No run yet." right
+                // above a populated Overall table, for instance, reads as
+                // contradictory. Hidden as a unit per tab rather than toggled
+                // individually so e.g. the Details button's own open/closed state
                 // survives switching tabs and back.
+                document.querySelector('#CurrentRunOnlyContainer').style.display = tab === 'current' ? '' : 'none';
                 document.querySelector('#LastRunOnlyContainer').style.display = tab === 'lastRun' ? '' : 'none';
 
-                var rows = tab === 'lastRun' ? statsData.lastRun : statsData.overall;
+                var rows = tab === 'current' ? statsData.current : (tab === 'lastRun' ? statsData.lastRun : statsData.overall);
                 if (rows === null) {
                     document.querySelector('#StatsTableContainer').textContent =
-                        tab === 'lastRun' ? 'No run yet.' : 'Loading…';
+                        tab === 'overall' ? 'Loading…' : (tab === 'current' ? 'No run currently in progress.' : 'No run yet.');
                 } else {
                     renderStatsTable(rows);
                 }
@@ -611,11 +639,6 @@
                     }
 
                     var rows = [];
-
-                    // Restores visibility after a live-progress view (see
-                    // renderLiveProgress) hid this button - there's no per-run
-                    // Details breakdown to show while a run is still in progress.
-                    toggleButton.style.display = '';
 
                     // Local alias - the Details breakdown below was written against a
                     // same-named local before fmtCount was hoisted into a shared
@@ -775,28 +798,20 @@
                 });
             }
 
-            // Live progress: while a run is actively in progress, polls
-            // /Enricherr/LiveProgress and shows it in place of the (necessarily
-            // stale) last-completed-run view - the same stats table, via the same
-            // buildStatsRows/renderStatsTable used for a completed run, so this adds
-            // no new rendering logic, just a different, more current data source.
-            // Polls unconditionally whenever this page is open (cheap - a small GET
-            // every few seconds) rather than needing a "run just started" signal from
-            // anywhere else; the endpoint itself is the source of truth for whether a
-            // run is actually active (Jellyfin's own ITaskManager, not just whether a
-            // snapshot file happens to exist).
+            // Live progress: its own "Current run" tab (not an overlay on top of
+            // "Last run", which stays exclusively the last COMPLETED run's own
+            // result) - polls /Enricherr/LiveProgress and, while active, renders
+            // through the same buildStatsRows/renderStatsTable a completed run uses,
+            // so this adds no new table-rendering logic, just a different data
+            // source feeding it. Polls unconditionally whenever this page is open
+            // (cheap - a small GET every few seconds) rather than needing a "run
+            // just started" signal from anywhere else; the endpoint itself is the
+            // source of truth for whether a run is actually active (Jellyfin's own
+            // ITaskManager, not just whether a snapshot file happens to exist).
             var isShowingLiveProgress = false;
 
             function renderLiveProgress(liveProgress) {
-                var headerEl = document.querySelector('#LastRunSummaryHeader');
-                var toggleButton = document.querySelector('#LastRunDetailsToggle');
-
-                // No per-run Details breakdown makes sense mid-run - the "Last run"
-                // one still on screen would be from whichever run happened before
-                // this one, which reads as stale/contradictory next to a live header.
-                toggleButton.style.display = 'none';
-                document.querySelector('#LastRunSummaryDetails').style.display = 'none';
-
+                var headerEl = document.querySelector('#CurrentRunHeader');
                 var elapsedSeconds = (Date.now() - new Date(liveProgress.startedAtUtc).getTime()) / 1000;
                 var pct = liveProgress.totalItems > 0 ? Math.round((liveProgress.itemsProcessed / liveProgress.totalItems) * 100) : 0;
 
@@ -806,14 +821,13 @@
                 liveDot.style.color = '#4caf50';
                 headerEl.appendChild(liveDot);
                 headerEl.appendChild(document.createTextNode(
-                    'Live - library ' + liveProgress.libraryIndex + '/' + liveProgress.libraryCount + ' (' + liveProgress.currentLibrary + ') - ' +
+                    'Library ' + liveProgress.libraryIndex + '/' + liveProgress.libraryCount + ' (' + liveProgress.currentLibrary + ') - ' +
                     liveProgress.itemsProcessed + '/' + liveProgress.totalItems + ' items (' + pct + '%) - ' +
                     formatDuration(elapsedSeconds) + ' elapsed' + (liveProgress.dryRun ? ' - dry run' : '')));
-                headerEl.style.fontWeight = '';
 
-                statsData.lastRun = buildStatsRows(liveProgress);
-                if (activeStatsTab === 'lastRun') {
-                    renderStatsTable(statsData.lastRun);
+                statsData.current = buildStatsRows(liveProgress);
+                if (activeStatsTab === 'current') {
+                    renderStatsTable(statsData.current);
                 }
             }
 
@@ -823,11 +837,18 @@
                 }).then(function (response) {
                     if (response.status === 204) {
                         // A run that was live and just finished (or was never live to
-                        // begin with, which is a harmless no-op here) - refresh with
-                        // the now-final numbers instead of leaving the last live
-                        // snapshot on screen looking frozen.
+                        // begin with, which is a harmless no-op here) - clear back to
+                        // "No run currently in progress" instead of leaving the last
+                        // live snapshot on screen looking frozen, and refresh "Last
+                        // run" with the now-final numbers.
                         if (isShowingLiveProgress) {
                             isShowingLiveProgress = false;
+                            statsData.current = null;
+                            document.querySelector('#CurrentRunHeader').textContent = 'No run currently in progress.';
+                            if (activeStatsTab === 'current') {
+                                document.querySelector('#StatsTableContainer').textContent = 'No run currently in progress.';
+                            }
+
                             loadLastRunSummary();
                         }
 
@@ -882,6 +903,11 @@
             document.querySelector('#ShowHelpToggle')
                 .addEventListener('change', updateHelpTextVisibility);
 
+            document.querySelector('#StatsTabCurrent')
+                .addEventListener('click', function () {
+                    setActiveStatsTab('current');
+                });
+
             document.querySelector('#StatsTabLastRun')
                 .addEventListener('click', function () {
                     setActiveStatsTab('lastRun');
@@ -898,6 +924,8 @@
             document.querySelector('#EnricherrConfigPage')
                 .addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
+                    document.querySelector('#ShowHelpToggle').checked = loadShowHelpPreference();
+                    updateHelpTextVisibility();
                     setActiveStatsTab(activeStatsTab);
                     loadLastRunSummary();
                     loadLibraryTotals();

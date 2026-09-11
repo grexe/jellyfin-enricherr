@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities.Movies;
@@ -36,6 +37,14 @@ public class MissingMetadataMatcher
     private const double TitleSimilarityThreshold = 0.9;
     private const int YearToleranceYears = 1;
     private const double RuntimeToleranceMinutes = 1.0;
+
+    // Matches a trailing internal archive/catalog number (e.g. "-052393-000-A") -
+    // confirmed live against a real "Kurzschluss"-style short-film archive: two
+    // hyphenated digit groups followed by a single letter, tacked onto an otherwise
+    // findable title. Deliberately narrow (not a general noise-stripping pattern -
+    // TitleMatching.CleanMediaTitle already handles the broad cases) since this is
+    // only used as a fallback SEARCH query, never applied to the display/rename title.
+    private static readonly Regex ArchiveCatalogSuffixRegex = new(@"-\d{4,}-\d{2,}-[A-Za-z]\s*$", RegexOptions.Compiled);
 
     private readonly IProviderManager _providerManager;
     private readonly ILibraryManager _libraryManager;
@@ -76,26 +85,49 @@ public class MissingMetadataMatcher
 
         var year = int.TryParse(candidateYear, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedYear) ? parsedYear : (int?)null;
 
-        var query = new RemoteSearchQuery<MovieInfo>
+        // Confirmed live: searching with the archive-number suffix still attached
+        // ("75 cl Schicksal-035082-000-A") came back with 0 results from every
+        // provider - unlike TitleSimilarity's scoring (tolerant of exactly this kind
+        // of trailing noise), a remote search API itself isn't necessarily forgiving
+        // of a query that noisy. If the first search comes back empty and the title
+        // looks like it has a trailing archive/catalog-number suffix (the pattern
+        // this "Kurzschluss"-style archive naming uses - a hyphenated run of two
+        // digit groups then a single letter), retry once with that suffix stripped.
+        var searchTitles = new System.Collections.Generic.List<string> { candidateTitle };
+        var strippedTitle = ArchiveCatalogSuffixRegex.Replace(candidateTitle, string.Empty).TrimEnd();
+        if (strippedTitle.Length > 0 && !string.Equals(strippedTitle, candidateTitle, StringComparison.Ordinal))
         {
-            SearchInfo = new MovieInfo
-            {
-                Name = candidateTitle,
-                Year = year,
-                MetadataLanguage = movie.GetPreferredMetadataLanguage(),
-                MetadataCountryCode = movie.GetPreferredMetadataCountryCode()
-            }
-        };
-
-        System.Collections.Generic.List<RemoteSearchResult> results;
-        try
-        {
-            results = (await _providerManager.GetRemoteSearchResults<Movie, MovieInfo>(query, cancellationToken).ConfigureAwait(false)).ToList();
+            searchTitles.Add(strippedTitle);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+
+        var results = new System.Collections.Generic.List<RemoteSearchResult>();
+        foreach (var searchTitle in searchTitles)
         {
-            _logger.LogWarning("  > Metadata search for \"{Title}\" failed: {Error}", candidateTitle, ex.Message);
-            return false;
+            var query = new RemoteSearchQuery<MovieInfo>
+            {
+                SearchInfo = new MovieInfo
+                {
+                    Name = searchTitle,
+                    Year = year,
+                    MetadataLanguage = movie.GetPreferredMetadataLanguage(),
+                    MetadataCountryCode = movie.GetPreferredMetadataCountryCode()
+                }
+            };
+
+            try
+            {
+                results = (await _providerManager.GetRemoteSearchResults<Movie, MovieInfo>(query, cancellationToken).ConfigureAwait(false)).ToList();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning("  > Metadata search for \"{Title}\" failed: {Error}", searchTitle, ex.Message);
+                continue;
+            }
+
+            if (results.Count > 0)
+            {
+                break;
+            }
         }
 
         var best = results
