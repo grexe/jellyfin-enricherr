@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.1.1.1",
+        "changelog": "Flipped \"Fix file/folder permissions\" (added in 1.1.1.0) to off by default. This plugin changing filesystem permissions on its own is an intrusive default for a fresh install, especially given a real bug in this exact mechanism (0.8.28.0-1.1.0.3, fixed in 1.1.0.4) briefly broke directory access on a live server before being caught. An admin who actually hits permission errors can now opt in deliberately instead.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.1.1.zip",
+        "checksum": "841556fa8fedde835aaa97209122e1c7",
+        "timestamp": "2026-09-11T14:01:33Z"
+      },
+      {
         "version": "1.1.1.0",
         "changelog": "New setting: \"Fix file/folder permissions\" (Organisation group, on by default - matching this plugin's behavior before this setting existed). Given the real damage the 1.1.0.4 bug caused before it was caught, a cautious admin who'd rather this plugin never touch filesystem permission bits/group at all - or whose setup doesn't need it - can now turn it off entirely, rather than the healing being an unconditional, unavoidable part of every run. Threaded through every UnixPermissions.MatchTo call site (trailer/theme-song folders and files, for both movies and series) and MovieFileOperations.MigrateToOwnFolder. No effect on Windows either way, where this was always a no-op.",
         "targetAbi": "10.11.0.0",

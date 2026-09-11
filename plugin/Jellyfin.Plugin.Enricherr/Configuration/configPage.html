@@ -178,8 +178,9 @@
                                     When a folder/file this plugin creates or writes into ends up with permission bits or a
                                     group that deny access to whichever user Jellyfin itself runs as (common when media was
                                     added by a different user/process, e.g. over SMB), match its permission bits and group to
-                                    an already-working reference file next to it. On by default; turn off if you'd rather
-                                    manage filesystem permissions yourself. No effect on Windows.
+                                    an already-working reference file next to it. Off by default, since this plugin changing
+                                    filesystem permissions on its own is an intrusive default - turn on only if you actually
+                                    hit permission errors. No effect on Windows.
                                 </div>
                             </div>
                         </div>

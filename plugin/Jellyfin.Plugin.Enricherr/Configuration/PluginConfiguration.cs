@@ -57,7 +57,7 @@ public class PluginConfiguration : BasePluginConfiguration
         MinTrailerResolution = 720;
         AllowUpgradeInOtherLanguage = false;
         FetchThemeSongs = false;
-        FixPermissions = true;
+        FixPermissions = false;
     }
 
     /// <summary>
@@ -245,9 +245,11 @@ public class PluginConfiguration : BasePluginConfiguration
     /// match an already-working reference file (see
     /// <see cref="Services.UnixPermissions.MatchTo"/>) - needed on some setups where
     /// media added by one user/process denies write access to whichever user Jellyfin
-    /// itself runs as, even when they share a group. On by default, matching this
-    /// plugin's behavior before this setting existed; a cautious admin who'd rather
-    /// manage permissions themselves, or whose setup doesn't need it, can turn it off.
+    /// itself runs as, even when they share a group. Off by default: this plugin
+    /// changing filesystem permissions on its own is an intrusive default for a fresh
+    /// install, and a real bug in this exact mechanism (fixed in 1.1.0.4, after
+    /// shipping in 0.8.28.0) briefly broke directory access on a live server before
+    /// being caught - an admin who wants this should opt in deliberately.
     /// No effect on Windows, where this was always a no-op.
     /// </summary>
     public bool FixPermissions { get; set; }

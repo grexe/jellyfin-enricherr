@@ -163,13 +163,14 @@
     </div>
 
     <div class="setting">
-      <span class="name">Fix file/folder permissions</span><span class="default">default: on</span>
+      <span class="name">Fix file/folder permissions</span><span class="default">default: off</span>
       <p>
         When a folder/file this plugin creates or writes into ends up with permission bits or a group that
         deny access to whichever user Jellyfin itself runs as (common when media was added by a different
         user/process, e.g. over SMB), matches its permission bits and group to an already-working reference
-        file next to it. On by default; turn off if you'd rather manage filesystem permissions yourself, or
-        your setup doesn't need it. No effect on Windows, where this is always a no-op.
+        file next to it. Off by default — this plugin changing filesystem permissions on its own is an
+        intrusive default; turn it on only if you actually hit permission errors. No effect on Windows,
+        where this is always a no-op.
       </p>
     </div>
   </div>
