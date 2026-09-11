@@ -436,25 +436,28 @@
                 return rows;
             }
 
-            // A text-cycling spinner (no CSS @keyframes) next to whichever library
-            // row is currently being processed on the "Current run" tab - deliberately
-            // not a <style>-block animation, since Jellyfin's dashboard injects only
-            // this page's <body> into the app shell, silently dropping its own <head>
-            // (see the inline-styling notes elsewhere in this file for the same
-            // reason). One persistent interval re-queries the spinner element(s) on
-            // every tick instead of the table's own re-render owning the animation -
-            // renderStatsTable rebuilds the whole table (and so a fresh, frame-0
-            // spinner span) on every call, but this interval keeps advancing whatever
-            // spinner element(s) currently exist regardless, and is naturally a no-op
-            // when none are in the DOM (a different tab is active, or no run is live).
-            var spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-            var spinnerFrameIndex = 0;
+            // A standard circular rotating spinner (a bordered circle with one
+            // accent-colored edge, spun via inline `transform: rotate(...)`) next to
+            // whichever library row is currently being processed on the "Current run"
+            // tab - deliberately animated by continuously updating an inline style
+            // rather than a CSS @keyframes animation, since Jellyfin's dashboard
+            // injects only this page's <body> into the app shell, silently dropping
+            // its own <head> (see the inline-styling notes elsewhere in this file for
+            // the same reason) - a <style> block with @keyframes would never apply.
+            // One persistent interval re-queries the spinner element(s) on every tick
+            // instead of the table's own re-render owning the animation -
+            // renderStatsTable rebuilds the whole table (and so a fresh, unrotated
+            // spinner element) on every call, but this interval keeps advancing
+            // whatever spinner element(s) currently exist regardless, and is
+            // naturally a no-op when none are in the DOM (a different tab is active,
+            // or no run is live).
+            var spinnerAngle = 0;
             setInterval(function () {
-                spinnerFrameIndex = (spinnerFrameIndex + 1) % spinnerFrames.length;
+                spinnerAngle = (spinnerAngle + 30) % 360;
                 document.querySelectorAll('.enricherr-spinner').forEach(function (el) {
-                    el.textContent = spinnerFrames[spinnerFrameIndex];
+                    el.style.transform = 'rotate(' + spinnerAngle + 'deg)';
                 });
-            }, 150);
+            }, 80);
 
             // Renders the "Library | Items | Trailers | Theme songs" table shared by
             // both Statistics tabs - "Last run" (Movies/TV series, from the last run's
@@ -489,16 +492,33 @@
                 rows.forEach(function (row) {
                     var tr = document.createElement('tr');
                     var nameCell = document.createElement('td');
-                    nameCell.textContent = row.name;
                     styleTableCell(nameCell);
                     if (row.inProgress) {
+                        // Flex, not a plain append after the text, so the spinner
+                        // sits at the cell's own right border regardless of how long
+                        // the library name is, rather than just trailing the text.
+                        nameCell.style.display = 'flex';
+                        nameCell.style.alignItems = 'center';
+                        nameCell.style.justifyContent = 'space-between';
+
+                        var nameSpan = document.createElement('span');
+                        nameSpan.textContent = row.name;
+                        nameCell.appendChild(nameSpan);
+
                         var spinner = document.createElement('span');
                         spinner.className = 'enricherr-spinner';
-                        spinner.style.marginLeft = '0.5em';
                         spinner.style.display = 'inline-block';
-                        spinner.textContent = spinnerFrames[0];
+                        spinner.style.width = '11px';
+                        spinner.style.height = '11px';
+                        spinner.style.marginLeft = '0.75em';
+                        spinner.style.borderRadius = '50%';
+                        spinner.style.border = '2px solid rgba(128, 128, 128, 0.3)';
+                        spinner.style.borderTopColor = '#4caf50';
                         nameCell.appendChild(spinner);
+                    } else {
+                        nameCell.textContent = row.name;
                     }
+
                     tr.appendChild(nameCell);
 
                     var itemsCell = document.createElement('td');

@@ -43,9 +43,17 @@ public class LibraryItemsFinder
     /// <param name="libraryIds">Configured library (VirtualFolder) ids, or empty for every library.</param>
     public List<BaseItem> ResolveLibrariesInScope(string[] libraryIds)
     {
+        // Alphabetical regardless of which branch resolves them - the settings
+        // page's "Overall" tab (and the live-progress table computed from this same
+        // order) always list libraries alphabetically, so a run scoped to a specific,
+        // *configured* set of libraries (this branch) needs to process them in that
+        // same order too, or the live progress table's top-to-bottom flow wouldn't
+        // match which library is actually the spinner's next stop.
         if (libraryIds.Length > 0)
         {
-            return ResolveLibraries(libraryIds, logProgress: true).ToList();
+            return ResolveLibraries(libraryIds, logProgress: true)
+                .OrderBy(lib => lib.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
         }
 
         var libraries = new List<BaseItem>();

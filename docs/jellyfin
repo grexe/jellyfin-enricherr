@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.5.1.1",
+        "changelog": "Two small fixes. (1) The live-progress \"Current run\" spinner is now a standard circular rotating spinner (a bordered, rotating circle), right-aligned to the library-name cell's own border, instead of the previous subtle cycling braille-dot character. (2) A run scoped to specific, individually-configured libraries (not \"scan every library\") now processes them in the same alphabetical order the settings page always displays them in - previously it followed whatever order they happened to be stored in, which could differ from display order, making the live-progress table's top-to-bottom flow not actually match which library was being worked on next.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.5.1.1.zip",
+        "checksum": "c47dd541f44f1d79936f119da97f40ae",
+        "timestamp": "2026-09-11T21:28:35Z"
+      },
+      {
         "version": "1.5.1.0",
         "changelog": "Four small fixes/improvements found live while testing missing-metadata search further. (1) Fixed the same double-quoting logging bug class fixed elsewhere before: manually-added quotes around {Title}/{Name}-style placeholders stacked with the logging backend's own automatic quoting of string values, showing up as \"\"like this\"\" in the log. (2) Every logged search result (not just the closest candidate) now names which provider it came from - needed to track down a real mystery: TMDb's own website search for a title found the correct film directly, but our API-level search returned an unrelated candidate instead, and without knowing which of several enabled providers (TheTVDB/TMDb/OpenMovieDB) actually produced that result, there was no way to tell whether TMDb was even the one being queried. (3) The \"Current run\" tab now auto-selects itself the moment a run is detected as active - on page load if one's already running, or when one starts while the page is open - without repeatedly overriding a deliberate switch to a different tab while still live. (4) An animated spinner (plain text-cycling, not a CSS animation, since Jellyfin's dashboard injection drops this page's own <style> block) now marks whichever library is currently being processed in the live-progress table.",
         "targetAbi": "10.11.0.0",
