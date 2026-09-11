@@ -9,6 +9,13 @@
         <div data-role="content">
             <div class="content-primary">
                 <form id="EnricherrConfigForm">
+                    <div class="checkboxContainer" style="margin-bottom: 0.5em;">
+                        <label class="emby-checkbox-label" style="cursor: pointer;">
+                            <input type="checkbox" id="ShowHelpToggle" is="emby-checkbox" checked />
+                            <span>Show setting descriptions</span>
+                        </label>
+                    </div>
+
                     <div class="verticalSection">
                         <h3 style="font-size: 1.2em; font-weight: 700; margin: 0 0 0.75em; padding-bottom: 0.35em; border-bottom: 1px solid rgba(128, 128, 128, 0.35);">Statistics</h3>
                         <div style="padding-left: 1.25em;">
@@ -31,20 +38,20 @@
                         <div style="padding-left: 1.25em;">
                             <h3 class="checkboxListLabel">Libraries</h3>
                             <div id="LibrariesList" class="checkboxList">Loading libraries&hellip;</div>
-                            <div class="fieldDescription">Leave all unchecked to scan every library. Applies to both movies and TV series - only libraries actually containing them are useful here. Renaming and folder migration below only apply to movies; a TV series always already has its own folder.</div>
+                            <div class="fieldDescription settingHelp">Leave all unchecked to scan every library. Applies to both movies and TV series - only libraries actually containing them are useful here. Renaming and folder migration below only apply to movies; a TV series always already has its own folder.</div>
 
                             <div class="checkboxContainer checkboxContainer-withDescription">
                                 <label class="emby-checkbox-label">
                                     <input id="TriggerLibraryScan" name="TriggerLibraryScan" type="checkbox" is="emby-checkbox" />
                                     <span>Trigger a library scan after changes</span>
                                 </label>
-                                <div class="fieldDescription">Run a library scan immediately after a trailer is downloaded or a movie is moved, instead of waiting for the next scheduled scan.</div>
+                                <div class="fieldDescription settingHelp">Run a library scan immediately after a trailer is downloaded or a movie is moved, instead of waiting for the next scheduled scan.</div>
                             </div>
 
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="MaxTrailerDurationSeconds">Maximum trailer duration (seconds)</label>
                                 <input id="MaxTrailerDurationSeconds" name="MaxTrailerDurationSeconds" type="number" is="emby-input" min="30" value="300" />
-                                <div class="fieldDescription">Search results longer than this are assumed to be a full movie or unrelated video, not a trailer.</div>
+                                <div class="fieldDescription settingHelp">Search results longer than this are assumed to be a full movie or unrelated video, not a trailer.</div>
                             </div>
                         </div>
                     </div>
@@ -52,7 +59,7 @@
                     <div class="verticalSection">
                         <h3 style="font-size: 1.2em; font-weight: 700; margin: 1.75em 0 0.75em; padding-bottom: 0.35em; border-bottom: 1px solid rgba(128, 128, 128, 0.35);">Audio/Video</h3>
                         <div style="padding-left: 1.25em;">
-                            <div class="fieldDescription" style="margin-bottom: 1em;">
+                            <div class="fieldDescription settingHelp" style="margin-bottom: 1em;">
                                 Resolution and audio preference apply to every search, including an item's very
                                 first one - a fresh search keeps trying further sources for a better result until
                                 it meets the target, rather than settling for the first one found. "Update existing
@@ -69,7 +76,7 @@
                                     <option value="1440">1440p (QHD)</option>
                                     <option value="2160">2160p (4K)</option>
                                 </select>
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     The minimum acceptable trailer resolution.
                                 </div>
                             </div>
@@ -86,7 +93,7 @@
                                         <span>Best quality</span>
                                     </label>
                                 </div>
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     Which matters more. Preferred language searches in the item's own language
                                     first, same as any other search - which can settle for a mediocre same-language
                                     result (the search stops at the first successful download, regardless of
@@ -102,7 +109,7 @@
                                     <input id="UpgradeLowQualityTrailers" name="UpgradeLowQualityTrailers" type="checkbox" is="emby-checkbox" />
                                     <span>Update existing trailers</span>
                                 </label>
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     Also re-checks trailers you already have against the resolution and audio
                                     preference above, searching for a better replacement if one falls short. The
                                     existing file is only ever replaced by a genuine improvement - both are compared
@@ -124,7 +131,7 @@
                                     <input id="RenameOriginal" name="RenameOriginal" type="checkbox" is="emby-checkbox" />
                                     <span>Rename original movie files</span>
                                 </label>
-                                <div class="fieldDescription">Rename the movie file to match its resolved title, e.g. "Movie Name (Year).ext".</div>
+                                <div class="fieldDescription settingHelp">Rename the movie file to match its resolved title, e.g. "Movie Name (Year).ext".</div>
                             </div>
 
                             <div class="checkboxContainer checkboxContainer-withDescription">
@@ -132,7 +139,7 @@
                                     <input id="RenameSeriesFolders" name="RenameSeriesFolders" type="checkbox" is="emby-checkbox" />
                                     <span>Rename series folders</span>
                                 </label>
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     Rename a TV series' own top-level folder to match its resolved title, e.g.
                                     "Series Name (Year)", and its season subfolders to Jellyfin's own canonical
                                     "Season NN" ("Specials" for season 0) - based on Jellyfin's own resolved season
@@ -152,7 +159,7 @@
                                     <option value="TrailersOnly">Only movies with a trailer</option>
                                     <option value="All">Every movie</option>
                                 </select>
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     Jellyfin only recognizes a local trailer file when the movie has its own dedicated folder
                                     (<a is="emby-linkbutton" class="button-link" href="https://github.com/jellyfin/jellyfin/issues/10077" target="_blank" rel="noopener noreferrer">jellyfin/jellyfin#10077</a>).
                                     When this is "Disabled", a movie without its own folder is skipped entirely (logged as a
@@ -170,7 +177,7 @@
                                     <input id="FetchThemeSongs" name="FetchThemeSongs" type="checkbox" is="emby-checkbox" />
                                     <span>Fetch theme songs</span>
                                 </label>
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     Also download a local theme song (<code>theme.mp3</code>) for each movie/series,
                                     looked up on <a is="emby-linkbutton" class="button-link" href="https://github.com/LizardByte/ThemerrDB" target="_blank" rel="noopener noreferrer">ThemerrDB</a>
                                     by TMDb id - the same community-curated database the Themerr-jellyfin plugin uses,
@@ -197,7 +204,7 @@
                                 <button is="emby-button" type="button" id="CookiesRemoveButton" class="raised button-cancel block emby-button" style="display:none">
                                     <span>Remove cookies file</span>
                                 </button>
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     Used by yt-dlp for authenticated/age-restricted YouTube access. No browser (Firefox, Chrome,
                                     Safari, ...) stores cookies as a plain file you can point to directly - Firefox keeps them in an
                                     SQLite database inside its profile folder, not a "cookies.txt". Export one instead: install the
@@ -212,7 +219,7 @@
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="RequestDelaySeconds">Delay between requests (seconds)</label>
                                 <input id="RequestDelaySeconds" name="RequestDelaySeconds" type="number" is="emby-input" min="0" value="3" />
-                                <div class="fieldDescription">
+                                <div class="fieldDescription settingHelp">
                                     Minimum wait before each yt-dlp request. A large library can add up to many separate
                                     requests with no pacing between them, which can trip YouTube's own rate limiting -
                                     that then blocks the whole session for up to an hour, with every remaining movie/series
@@ -226,13 +233,13 @@
                                     <input id="RetryOnRateLimit" name="RetryOnRateLimit" type="checkbox" is="emby-checkbox" />
                                     <span>Retry once if rate-limited</span>
                                 </label>
-                                <div class="fieldDescription">If YouTube rate-limits the session anyway, wait, then retry the rest of the run exactly once instead of stopping immediately. There's no reliable way to know when the limit actually lifts - YouTube's own message only states an upper bound - so this is a single bounded retry, not a backoff loop: if the retry also gets rate-limited, the run stops for good.</div>
+                                <div class="fieldDescription settingHelp">If YouTube rate-limits the session anyway, wait, then retry the rest of the run exactly once instead of stopping immediately. There's no reliable way to know when the limit actually lifts - YouTube's own message only states an upper bound - so this is a single bounded retry, not a backoff loop: if the retry also gets rate-limited, the run stops for good.</div>
                             </div>
 
                             <div class="inputContainer" id="RateLimitRetryDelayContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="RateLimitRetryDelayMinutes">Rate-limit retry delay (minutes)</label>
                                 <input id="RateLimitRetryDelayMinutes" name="RateLimitRetryDelayMinutes" type="number" is="emby-input" min="1" value="65" />
-                                <div class="fieldDescription">How long to wait before that single retry. Defaults to a bit past YouTube's own stated "up to an hour" ceiling - retrying too early just spends the one retry hitting the same still-active limit. Disabled unless "Retry once if rate-limited" above is on.</div>
+                                <div class="fieldDescription settingHelp">How long to wait before that single retry. Defaults to a bit past YouTube's own stated "up to an hour" ceiling - retrying too early just spends the one retry hitting the same still-active limit. Disabled unless "Retry once if rate-limited" above is on.</div>
                             </div>
                         </div>
                     </div>
@@ -245,7 +252,7 @@
                                     <input id="DryRun" name="DryRun" type="checkbox" is="emby-checkbox" />
                                     <span>Dry run</span>
                                 </label>
-                                <div class="fieldDescription">Log what a manually triggered run would do, without downloading, renaming, or moving anything.</div>
+                                <div class="fieldDescription settingHelp">Log what a manually triggered run would do, without downloading, renaming, or moving anything.</div>
                             </div>
 
                             <div class="checkboxContainer checkboxContainer-withDescription">
@@ -253,7 +260,7 @@
                                     <input id="VerboseLogging" name="VerboseLogging" type="checkbox" is="emby-checkbox" />
                                     <span>Verbose logging</span>
                                 </label>
-                                <div class="fieldDescription">Log each rejected search candidate's specific reason ("Title mismatch: ...", "Duration &gt; 300s: ..."). Off by default to keep a normal run's log readable - a movie/series needing several fallback searches can otherwise generate dozens of these lines. Turn on when diagnosing why a specific movie/series isn't finding a trailer it should.</div>
+                                <div class="fieldDescription settingHelp">Log each rejected search candidate's specific reason ("Title mismatch: ...", "Duration &gt; 300s: ..."). Off by default to keep a normal run's log readable - a movie/series needing several fallback searches can otherwise generate dozens of these lines. Turn on when diagnosing why a specific movie/series isn't finding a trailer it should.</div>
                             </div>
                         </div>
                     </div>
@@ -270,6 +277,21 @@
             var EnricherrConfig = {
                 pluginUniqueId: '04035fb7-8ca5-4bbf-a65b-7608c36e4e04'
             };
+
+            // Client-side only, not persisted to config - purely a viewing
+            // preference (the docs site already covers what every setting does in
+            // more detail, and a clean, description-free view is also just easier
+            // to screenshot). Resets to shown on every page load. Only the
+            // per-setting explanatory text is tagged .settingHelp - status/content
+            // displays that happen to reuse the same .fieldDescription styling
+            // (the stats table, the last-run summary, the cookies status line)
+            // deliberately aren't, so this never hides real content.
+            function updateHelpTextVisibility() {
+                var show = document.querySelector('#ShowHelpToggle').checked;
+                document.querySelectorAll('.settingHelp').forEach(function (el) {
+                    el.style.display = show ? '' : 'none';
+                });
+            }
 
             // Statistics tab state: which rows go with each tab, and which is
             // currently shown. Populated independently by loadLastRunSummary() and
@@ -701,6 +723,9 @@
 
             document.querySelector('#RetryOnRateLimit')
                 .addEventListener('change', updateRateLimitRetryDelayEnabled);
+
+            document.querySelector('#ShowHelpToggle')
+                .addEventListener('change', updateHelpTextVisibility);
 
             document.querySelector('#StatsTabLastRun')
                 .addEventListener('click', function () {

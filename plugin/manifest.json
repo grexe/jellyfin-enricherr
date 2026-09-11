@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png",
     "versions": [
       {
+        "version": "1.1.0.0",
+        "changelog": "New feature: a \"Show setting descriptions\" checkbox at the top of the page (on by default) hides every per-setting explanation, leaving just the controls - the docs site already covers each one in more detail, and the inline text made for cluttered screenshots. Only genuine per-setting help text is affected; status/content displays that happen to reuse the same styling (the statistics table, the last-run summary, the cookies status line) are unaffected. Client-side only, not persisted - resets to shown on every page load.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.0.0.zip",
+        "checksum": "71ef295df6d312fea9656ed9bb1bb42d",
+        "timestamp": "2026-09-11T10:29:15Z"
+      },
+      {
         "version": "1.0.1.0",
         "changelog": "New feature: the Statistics table's Trailers and Theme songs columns now show a tinted coverage bar behind the count - green for trailers, blue for theme songs - filled to the percentage of that library's items already covered (e.g. \"342 (49%)\"), via a single CSS gradient on the cell background. A phase that never started this run (\"n/a\") is left as plain text, no bar.",
         "targetAbi": "10.11.0.0",
