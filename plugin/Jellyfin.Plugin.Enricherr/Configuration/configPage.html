@@ -337,10 +337,27 @@
                     styleTableCell(nameCell);
                     tr.appendChild(nameCell);
 
-                    [row.items, row.trailers, row.themeSongs].forEach(function (value) {
+                    var itemsCell = document.createElement('td');
+                    itemsCell.textContent = String(row.items);
+                    styleTableCell(itemsCell, { align: 'right' });
+                    tr.appendChild(itemsCell);
+
+                    // Trailers/theme songs get a coverage bar - a single CSS gradient
+                    // (color up to the percentage, transparent after) rather than a
+                    // separate element, so it works as a plain cell background with no
+                    // extra DOM/layout to keep in sync. "n/a" (a phase that never
+                    // started this run - see fmt() above) isn't a real count, so no
+                    // bar/percentage for it, just the plain text.
+                    [{ value: row.trailers, rgb: '76, 175, 80' }, { value: row.themeSongs, rgb: '66, 165, 245' }].forEach(function (col) {
                         var cell = document.createElement('td');
-                        cell.textContent = String(value);
                         styleTableCell(cell, { align: 'right' });
+                        if (typeof col.value === 'number' && typeof row.items === 'number' && row.items > 0) {
+                            var pct = Math.round((col.value / row.items) * 100);
+                            cell.style.background = 'linear-gradient(to right, rgba(' + col.rgb + ', 0.3) ' + pct + '%, transparent ' + pct + '%)';
+                            cell.textContent = col.value + ' (' + pct + '%)';
+                        } else {
+                            cell.textContent = String(col.value);
+                        }
                         tr.appendChild(cell);
                     });
 

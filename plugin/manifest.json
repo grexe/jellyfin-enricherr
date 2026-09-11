@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png",
     "versions": [
       {
+        "version": "1.0.0.2",
+        "changelog": "Statistics table: the Trailers and Theme songs columns now show a tinted coverage bar behind the count - green for trailers, blue for theme songs - filled to the percentage of that library's items already covered (e.g. \"342 (49%)\"), via a single CSS gradient on the cell background. A phase that never started this run (\"n/a\") is left as plain text, no bar.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.0.0.2.zip",
+        "checksum": "391867f6d6fcccc58c5c92921c3b1312",
+        "timestamp": "2026-09-11T09:58:59Z"
+      },
+      {
         "version": "1.0.0.1",
         "changelog": "Critical fix found immediately after installing 1.0.0.0 fresh: configPage.html's settings page still hardcoded the OLD plugin's GUID (03385b47-...) in its JavaScript API calls, missed because the rename's GUID-replacement search only covered .cs/.json/.yaml files, not .html. This meant the new plugin's settings page was actually reading and would have WRITTEN the old, separately-installed \"Trailer Fetcher\" plugin's live configuration - a real risk if anyone saved settings from the new page while both are installed side by side during migration. Fixed to use the new GUID. No settings were actually overwritten before this was caught.",
         "targetAbi": "10.11.0.0",
