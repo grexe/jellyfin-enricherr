@@ -397,6 +397,12 @@ public class FetchTrailersTask : IScheduledTask
                 }
             }
 
+            // Same permission-drift healing as the theme song folder below - a folder
+            // that already existed before this run (not freshly migrated by
+            // MigrateToOwnFolder above) never otherwise gets its permissions checked
+            // before we try to write a trailer into it.
+            UnixPermissions.MatchTo(folderPath, localPath, _logger);
+
             // Resolution/audio preference are honored on every search, not just an
             // upgrade re-check (see DownloadBestAsync) - so a fresh item doesn't need
             // a later "Update existing trailers" run just to reach quality it could
@@ -1000,6 +1006,20 @@ public class FetchTrailersTask : IScheduledTask
                     stats.SeriesSeasonsRenamed++;
                 }
             }
+        }
+
+        // Confirmed live: an existing series folder's permission bits/group can deny
+        // this plugin's own process write access (same class of issue as a movie's
+        // folder - see UnixPermissions), but unlike the movie theme-song folder
+        // (healed every run below, before writing) nothing previously healed a
+        // series folder outside of the one-time RenameSeriesFolder migration above -
+        // so a pre-existing series folder's permission drift was never fixed before
+        // either a trailer or theme song write into it. Using an existing episode
+        // file as the reference, since a series has no single item.Path of its own.
+        var referenceEpisode = SeriesFileOperations.FindReferenceEpisode(seriesPath, _logger);
+        if (referenceEpisode is not null)
+        {
+            UnixPermissions.MatchTo(seriesPath, referenceEpisode, _logger);
         }
 
         var trailerFilename = Path.Combine(seriesPath, $"{safeTitle}-trailer.mp4");

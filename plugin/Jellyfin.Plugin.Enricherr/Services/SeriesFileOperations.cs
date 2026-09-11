@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Enricherr.Services;
@@ -125,6 +126,29 @@ public static class SeriesFileOperations
         {
             logger.LogError("  > Failed to rename season folder {Folder} to {Name}: {Error}", PathDisplay.Relative(seasonPath, libraryRoot), targetName, e.Message);
             return false;
+        }
+    }
+
+    private static readonly string[] VideoExtensions = { ".mkv", ".mp4", ".avi", ".m4v", ".ts", ".mov", ".wmv" };
+
+    /// <summary>
+    /// Finds an existing episode file under a series folder to use as a permission
+    /// reference (see <see cref="UnixPermissions.MatchTo"/>) - unlike a movie, a
+    /// series has no single item.Path pointing at "the" media file, so this stands in
+    /// for one. Null if the folder has no video file yet (e.g. a series added but not
+    /// synced) or can't be read.
+    /// </summary>
+    public static string? FindReferenceEpisode(string seriesPath, ILogger logger)
+    {
+        try
+        {
+            return Directory.EnumerateFiles(seriesPath, "*", SearchOption.AllDirectories)
+                .FirstOrDefault(f => VideoExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase));
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning("  > Could not scan {Dir} for a reference episode file: {Error}", seriesPath, e.Message);
+            return null;
         }
     }
 }

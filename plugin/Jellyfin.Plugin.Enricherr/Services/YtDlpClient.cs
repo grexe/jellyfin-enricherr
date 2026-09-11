@@ -18,6 +18,32 @@ namespace Jellyfin.Plugin.Enricherr.Services;
 public record YtDlpCandidate(string Title, double? DurationSeconds, string WebpageUrl);
 
 /// <summary>
+/// Result of a single download attempt - distinguishes a YouTube-side failure (no
+/// candidate/format extracted, genuinely worth retrying with a different
+/// player_client) from a local filesystem failure (the file downloaded fine, but
+/// copying it into the library failed - typically a permission problem). Confirmed
+/// live: collapsing both into a single bool meant a permission error on the
+/// destination folder was treated exactly like an extraction failure, so the retry
+/// loop burned an extra YouTube download attempting a different client - which can
+/// never fix a local permission problem - only to fail at the identical copy step
+/// again a few seconds later.
+/// </summary>
+public enum DownloadOutcome
+{
+    /// <summary>The file was downloaded and successfully copied to its destination.</summary>
+    Success,
+
+    /// <summary>yt-dlp found nothing downloadable - worth retrying with a different player_client.</summary>
+    NoCandidateFound,
+
+    /// <summary>
+    /// The download itself succeeded, but copying/moving it into place failed (e.g. a
+    /// permission error) - a local problem no player_client retry can fix.
+    /// </summary>
+    DestinationWriteFailed
+}
+
+/// <summary>
 /// Shells out to the yt-dlp executable to probe candidate videos (metadata only, no
 /// download) and to download a chosen one. yt-dlp is not bundled with the plugin -
 /// it must be installed wherever the Jellyfin server process itself runs.
@@ -209,18 +235,25 @@ public class YtDlpClient
     /// </summary>
     public async Task<bool> DownloadAsync(string url, string destinationPath, CancellationToken cancellationToken)
     {
-        if (await DownloadOnceAsync(url, destinationPath, playerClientOverride: null, cancellationToken).ConfigureAwait(false))
+        var outcome = await DownloadOnceAsync(url, destinationPath, playerClientOverride: null, cancellationToken).ConfigureAwait(false);
+        if (outcome != DownloadOutcome.NoCandidateFound)
         {
-            return true;
+            // Success: done. DestinationWriteFailed: a different YouTube client tier
+            // can never fix a local filesystem problem (confirmed live: a permission
+            // error on the destination folder was retried with a different client
+            // anyway, burning a second full download only to fail at the identical
+            // copy step again a few seconds later) - stop here either way.
+            return outcome == DownloadOutcome.Success;
         }
 
         var hasCookies = !string.IsNullOrEmpty(_cookiesFilePath) && File.Exists(_cookiesFilePath);
         if (hasCookies)
         {
             _logger.LogInformation("  > Retrying download with player_client=web (cookies configured)...");
-            if (await DownloadOnceAsync(url, destinationPath, playerClientOverride: "web", cancellationToken).ConfigureAwait(false))
+            outcome = await DownloadOnceAsync(url, destinationPath, playerClientOverride: "web", cancellationToken).ConfigureAwait(false);
+            if (outcome != DownloadOutcome.NoCandidateFound)
             {
-                return true;
+                return outcome == DownloadOutcome.Success;
             }
         }
 
@@ -232,10 +265,11 @@ public class YtDlpClient
         // is otherwise indistinguishable in the log from a normal successful download.
         _logger.LogInformation(
             "  > Retrying download with a more conservative client (mweb) - reliable, but may fall back to a much lower resolution (~360p) than a normal download would get...");
-        return await DownloadOnceAsync(url, destinationPath, playerClientOverride: "mweb", cancellationToken).ConfigureAwait(false);
+        outcome = await DownloadOnceAsync(url, destinationPath, playerClientOverride: "mweb", cancellationToken).ConfigureAwait(false);
+        return outcome == DownloadOutcome.Success;
     }
 
-    private async Task<bool> DownloadOnceAsync(string url, string destinationPath, string? playerClientOverride, CancellationToken cancellationToken)
+    private async Task<DownloadOutcome> DownloadOnceAsync(string url, string destinationPath, string? playerClientOverride, CancellationToken cancellationToken)
     {
         var tmpDir = Directory.CreateTempSubdirectory("enricherr-");
         try
@@ -288,7 +322,7 @@ public class YtDlpClient
                     _logger.LogWarning("  > {WarningLine}", warningLine);
                 }
 
-                return false;
+                return DownloadOutcome.NoCandidateFound;
             }
 
             var tmpDest = destinationPath + ".part";
@@ -300,7 +334,7 @@ public class YtDlpClient
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 _logger.LogWarning("  > Copy to destination failed: {Error}", e.Message);
-                return false;
+                return DownloadOutcome.DestinationWriteFailed;
             }
             finally
             {
@@ -330,11 +364,11 @@ public class YtDlpClient
                 // its own message once that's decided. This just confirms the download
                 // itself succeeded.
                 _logger.LogInformation("  > Downloaded: {Name}", Path.GetFileName(destinationPath));
-                return true;
+                return DownloadOutcome.Success;
             }
 
             _logger.LogWarning("  > Copy failed or file is empty on remote: {Path}", destinationPath);
-            return false;
+            return DownloadOutcome.DestinationWriteFailed;
         }
         finally
         {
@@ -360,26 +394,34 @@ public class YtDlpClient
     /// </summary>
     public async Task<bool> DownloadAudioAsync(string url, string destinationPath, CancellationToken cancellationToken)
     {
-        if (await DownloadAudioOnceAsync(url, destinationPath, playerClientOverride: null, cancellationToken).ConfigureAwait(false))
+        var outcome = await DownloadAudioOnceAsync(url, destinationPath, playerClientOverride: null, cancellationToken).ConfigureAwait(false);
+        if (outcome != DownloadOutcome.NoCandidateFound)
         {
-            return true;
+            // Success: done. DestinationWriteFailed: a different YouTube client tier
+            // can never fix a local filesystem problem (confirmed live: a permission
+            // error on the destination folder was retried with a different client
+            // anyway, burning a second full download only to fail at the identical
+            // copy step again a few seconds later) - stop here either way.
+            return outcome == DownloadOutcome.Success;
         }
 
         var hasCookies = !string.IsNullOrEmpty(_cookiesFilePath) && File.Exists(_cookiesFilePath);
         if (hasCookies)
         {
             _logger.LogInformation("  > Retrying theme song download with player_client=web (cookies configured)...");
-            if (await DownloadAudioOnceAsync(url, destinationPath, playerClientOverride: "web", cancellationToken).ConfigureAwait(false))
+            outcome = await DownloadAudioOnceAsync(url, destinationPath, playerClientOverride: "web", cancellationToken).ConfigureAwait(false);
+            if (outcome != DownloadOutcome.NoCandidateFound)
             {
-                return true;
+                return outcome == DownloadOutcome.Success;
             }
         }
 
         _logger.LogInformation("  > Retrying theme song download with a more conservative client (mweb)...");
-        return await DownloadAudioOnceAsync(url, destinationPath, playerClientOverride: "mweb", cancellationToken).ConfigureAwait(false);
+        outcome = await DownloadAudioOnceAsync(url, destinationPath, playerClientOverride: "mweb", cancellationToken).ConfigureAwait(false);
+        return outcome == DownloadOutcome.Success;
     }
 
-    private async Task<bool> DownloadAudioOnceAsync(string url, string destinationPath, string? playerClientOverride, CancellationToken cancellationToken)
+    private async Task<DownloadOutcome> DownloadAudioOnceAsync(string url, string destinationPath, string? playerClientOverride, CancellationToken cancellationToken)
     {
         var tmpDir = Directory.CreateTempSubdirectory("enricherr-theme-");
         try
@@ -418,7 +460,7 @@ public class YtDlpClient
                     _logger.LogWarning("  > {WarningLine}", warningLine);
                 }
 
-                return false;
+                return DownloadOutcome.NoCandidateFound;
             }
 
             var tmpDest = destinationPath + ".part";
@@ -430,7 +472,7 @@ public class YtDlpClient
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 _logger.LogWarning("  > Copy to destination failed: {Error}", e.Message);
-                return false;
+                return DownloadOutcome.DestinationWriteFailed;
             }
             finally
             {
@@ -456,11 +498,11 @@ public class YtDlpClient
             if (File.Exists(destinationPath) && new FileInfo(destinationPath).Length > 0)
             {
                 _logger.LogInformation("  > Theme song successfully saved: {Name}", Path.GetFileName(destinationPath));
-                return true;
+                return DownloadOutcome.Success;
             }
 
             _logger.LogWarning("  > Copy failed or file is empty on remote: {Path}", destinationPath);
-            return false;
+            return DownloadOutcome.DestinationWriteFailed;
         }
         finally
         {
