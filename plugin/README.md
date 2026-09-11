@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="images/logo.png" alt="Trailer Fetcher logo" width="200" />
+  <img src="images/logo.png" alt="Jellyfin Enricherr logo" width="200" />
 </p>
 
-# Trailer Fetcher (Jellyfin plugin)
+# Jellyfin Enricherr (Jellyfin plugin)
 
 Finds and downloads missing local trailers - for movies and TV series - from YouTube
 via `yt-dlp`, running natively in-process on the Jellyfin server, with sequel-aware
@@ -13,8 +13,9 @@ series always already has one, so that step doesn't apply there.
 
 This is a from-scratch C# port of the standalone
 [`jellyfin-trailer-fetcher`](../src) Python script (still in this same repository, at
-the root), not a wrapper around it - running server-side changes the shape of the
-problem enough that a straight rewrite made more sense than shelling out.
+the root, not yet renamed to match - see its own `pyproject.toml`), not a wrapper
+around it - running server-side changes the shape of the problem enough that a
+straight rewrite made more sense than shelling out.
 
 ## Why a native rewrite, not a wrapper
 
@@ -97,7 +98,7 @@ letting that vary would mean supporting whatever combination of yt-dlp version a
 a user happens to have installed, instead of the one version+flag combination this
 plugin is actually built and tested against. If provisioning fails (e.g. no internet
 egress), the plugin logs a clear error per attempted download rather than failing
-silently - check `trailer-fetcher.log` (see Logging below).
+silently - check `enricherr.log` (see Logging below).
 
 ### Evaluated and rejected: MeTube
 
@@ -143,12 +144,12 @@ neither of which a series - always already in its own dedicated folder - needs a
 ./package.sh
 ```
 
-This produces `dist/Jellyfin.Plugin.TrailerFetcher_<version>.zip`. Unzip it into your
+This produces `dist/Jellyfin.Plugin.Enricherr_<version>.zip`. Unzip it into your
 Jellyfin server's plugin directory, in its own version-named subfolder:
 
 ```
-<jellyfin data dir>/plugins/Trailer Fetcher_<version>/Jellyfin.Plugin.TrailerFetcher.dll
-<jellyfin data dir>/plugins/Trailer Fetcher_<version>/Jellyfin.Plugin.TrailerFetcher.pdb
+<jellyfin data dir>/plugins/Jellyfin Enricherr_<version>/Jellyfin.Plugin.Enricherr.dll
+<jellyfin data dir>/plugins/Jellyfin Enricherr_<version>/Jellyfin.Plugin.Enricherr.pdb
 ```
 
 Then restart Jellyfin. `<jellyfin data dir>` is wherever Jellyfin's `ProgramDataPath` is
@@ -167,25 +168,25 @@ This uses Jellyfin's normal install/update mechanism instead of manual file copy
 3. In Jellyfin: **Dashboard → Plugins → Repositories → Add Repository**, using this
    raw URL:
    ```
-   https://raw.githubusercontent.com/grexe/jellyfin-trailer-fetcher/main/plugin/manifest.json
+   https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/manifest.json
    ```
-4. **Dashboard → Plugins → Catalog** should now list "Trailer Fetcher" - install it
+4. **Dashboard → Plugins → Catalog** should now list "Jellyfin Enricherr" - install it
    from there. Future `package.sh` + manifest update + push cycles show up as a normal
    update in the Jellyfin dashboard.
 
 ## Library scoping
 
 The settings page lists every configured Jellyfin library (fetched live via
-`GET /TrailerFetcher/Libraries`, backed by `ILibraryManager.GetVirtualFolders()`).
+`GET /Enricherr/Libraries`, backed by `ILibraryManager.GetVirtualFolders()`).
 Leave all unchecked to scan every library; check specific ones to scope
 `FetchTrailersTask`'s query to just those (`InternalItemsQuery.Parent`, one query per
 selected library).
 
 ## Logging
 
-This plugin's log entries (from `FetchTrailersTask`, `TrailerFetcherController`, and
-anything else in the `Jellyfin.Plugin.TrailerFetcher` namespace) are mirrored into
-their own file, `<plugin data folder>/trailer-fetcher.log`, in addition to Jellyfin's
+This plugin's log entries (from `FetchTrailersTask`, `EnricherrController`, and
+anything else in the `Jellyfin.Plugin.Enricherr` namespace) are mirrored into
+their own file, `<plugin data folder>/enricherr.log`, in addition to Jellyfin's
 main server log - so a run can be inspected without wading through unrelated server
 noise. Implemented as a scoped `ILoggerProvider` (`Logging/PluginFileLoggerProvider.cs`,
 registered via `PluginServiceRegistrator`) that filters by log category rather than

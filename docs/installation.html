@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Installation — Trailer Fetcher</title>
+<title>Installation — Jellyfin Enricherr</title>
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -11,30 +11,30 @@
 <header class="site-header">
   <div class="site-header-inner">
     <img src="assets/logo.png" alt="">
-    <span class="site-title">Trailer Fetcher</span>
+    <span class="site-title">Jellyfin Enricherr</span>
     <nav class="site-nav">
       <a href="index.html">Home</a>
       <a href="installation.html" class="active">Installation</a>
       <a href="configuration.html">Configuration</a>
       <a href="how-it-works.html">How It Works</a>
       <a href="troubleshooting.html">Troubleshooting</a>
-      <a href="https://github.com/grexe/jellyfin-trailer-fetcher">GitHub</a>
+      <a href="https://github.com/grexe/jellyfin-enricherr">GitHub</a>
     </nav>
   </div>
 </header>
 
 <main>
   <h1>Installation</h1>
-  <p class="lede">Trailer Fetcher installs through Jellyfin's normal plugin repository mechanism — add the
+  <p class="lede">Jellyfin Enricherr installs through Jellyfin's normal plugin repository mechanism — add the
   repository once, then install and update it from the Catalog like any other plugin.</p>
 
   <h2>1. Add the repository</h2>
   <p>In Jellyfin: <strong>Dashboard → Plugins → Repositories → Add Repository</strong>, and enter this URL:</p>
-  <pre><code>https://raw.githubusercontent.com/grexe/jellyfin-trailer-fetcher/main/plugin/manifest.json</code></pre>
+  <pre><code>https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/manifest.json</code></pre>
 
   <h2>2. Install the plugin</h2>
   <p>
-    Go to <strong>Dashboard → Plugins → Catalog</strong>. <strong>Trailer Fetcher</strong> should now be
+    Go to <strong>Dashboard → Plugins → Catalog</strong>. <strong>Jellyfin Enricherr</strong> should now be
     listed under <em>General</em> — install it.
   </p>
 
@@ -43,7 +43,7 @@
 
   <h2>4. Configure and run</h2>
   <p>
-    Open <strong>Dashboard → Plugins → Trailer Fetcher</strong> to configure it (see
+    Open <strong>Dashboard → Plugins → Jellyfin Enricherr</strong> to configure it (see
     <a href="configuration.html">Configuration</a> for what every setting does), then either wait for its
     daily scheduled trigger or run it on demand from <strong>Dashboard → Scheduled Tasks → Fetch Missing
     Trailers</strong>.
@@ -65,16 +65,16 @@
 
   <h2>Uninstalling</h2>
   <p>
-    <strong>Dashboard → Plugins → My Plugins</strong>, find Trailer Fetcher, and uninstall it from there.
+    <strong>Dashboard → Plugins → My Plugins</strong>, find Jellyfin Enricherr, and uninstall it from there.
     Trailers it already downloaded are ordinary local files and are <em>not</em> removed — only the plugin
     itself and its own configuration/state are.
   </p>
 </main>
 
 <footer>
-  Trailer Fetcher is free/open source software.
-  <a href="https://github.com/grexe/jellyfin-trailer-fetcher">Source on GitHub</a> ·
-  <a href="https://github.com/grexe/jellyfin-trailer-fetcher/issues">Report an issue</a>
+  Jellyfin Enricherr is free/open source software.
+  <a href="https://github.com/grexe/jellyfin-enricherr">Source on GitHub</a> ·
+  <a href="https://github.com/grexe/jellyfin-enricherr/issues">Report an issue</a>
 </footer>
 </body>
 </html>

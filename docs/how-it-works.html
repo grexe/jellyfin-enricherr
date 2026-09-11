@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How It Works — Trailer Fetcher</title>
+<title>How It Works — Jellyfin Enricherr</title>
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/style.css">
 <script type="module">
@@ -16,14 +16,14 @@
 <header class="site-header">
   <div class="site-header-inner">
     <img src="assets/logo.png" alt="">
-    <span class="site-title">Trailer Fetcher</span>
+    <span class="site-title">Jellyfin Enricherr</span>
     <nav class="site-nav">
       <a href="index.html">Home</a>
       <a href="installation.html">Installation</a>
       <a href="configuration.html">Configuration</a>
       <a href="how-it-works.html" class="active">How It Works</a>
       <a href="troubleshooting.html">Troubleshooting</a>
-      <a href="https://github.com/grexe/jellyfin-trailer-fetcher">GitHub</a>
+      <a href="https://github.com/grexe/jellyfin-enricherr">GitHub</a>
     </nav>
   </div>
 </header>
@@ -261,7 +261,7 @@ flowchart TD
 
   <h2>Dependencies</h2>
   <p>
-    Trailer Fetcher shells out to <code>yt-dlp</code> for the actual YouTube extraction/download, and to a
+    Jellyfin Enricherr shells out to <code>yt-dlp</code> for the actual YouTube extraction/download, and to a
     <code>deno</code> JavaScript runtime that <code>yt-dlp</code> needs to solve YouTube's signature/cipher
     challenges. <strong>Neither needs to be installed on the server</strong> — the plugin downloads both
     directly from their own GitHub releases into its own data folder the first time they're needed, verifies
@@ -272,16 +272,16 @@ flowchart TD
 
   <h2>Logging</h2>
   <p>
-    Trailer Fetcher's own log entries are mirrored into a dedicated file,
-    <code>&lt;plugin data folder&gt;/trailer-fetcher.log</code>, in addition to Jellyfin's main server log —
+    Jellyfin Enricherr's own log entries are mirrored into a dedicated file,
+    <code>&lt;plugin data folder&gt;/enricherr.log</code>, in addition to Jellyfin's main server log —
     so a run can be inspected without wading through unrelated server noise.
   </p>
 </main>
 
 <footer>
-  Trailer Fetcher is free/open source software.
-  <a href="https://github.com/grexe/jellyfin-trailer-fetcher">Source on GitHub</a> ·
-  <a href="https://github.com/grexe/jellyfin-trailer-fetcher/issues">Report an issue</a>
+  Jellyfin Enricherr is free/open source software.
+  <a href="https://github.com/grexe/jellyfin-enricherr">Source on GitHub</a> ·
+  <a href="https://github.com/grexe/jellyfin-enricherr/issues">Report an issue</a>
 </footer>
 </body>
 </html>

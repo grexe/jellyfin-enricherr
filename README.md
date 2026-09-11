@@ -1,18 +1,19 @@
 <p align="center">
-  <img src="plugin/images/logo.png" alt="Trailer Fetcher logo" width="140" />
+  <img src="plugin/images/logo.png" alt="Jellyfin Enricherr logo" width="140" />
 </p>
 
-<h1 align="center">Trailer Fetcher</h1>
+<h1 align="center">Jellyfin Enricherr</h1>
 
 <p align="center">
-  A Jellyfin plugin that finds and downloads missing local trailers for movies and TV series from YouTube.
+  A Jellyfin plugin that finds and downloads missing local trailers and theme songs for movies and TV series, and
+  cleans up messy release-style folder/file names.
 </p>
 
 <p align="center">
-  <a href="https://grexe.github.io/jellyfin-trailer-fetcher/"><strong>Documentation</strong></a>
+  <a href="https://grexe.github.io/jellyfin-enricherr/"><strong>Documentation</strong></a>
 </p>
 
-Trailer Fetcher runs as a scheduled task inside your Jellyfin server. For every movie or series without a local
+Jellyfin Enricherr runs as a scheduled task inside your Jellyfin server. For every movie or series without a local
 trailer, it tries Jellyfin's own `RemoteTrailers` link first, then falls back to a multi-stage YouTube search with
 sequel-aware title matching and duration/keyword filtering, downloads the best-quality match it can get via
 `yt-dlp`, and saves it next to your media (`<title>-trailer.mp4`) so every client - including ones that can't stream
@@ -40,6 +41,10 @@ dashboard instead of a `.env` file.
 - **Optional file organisation** - can rename the original movie file to match its resolved title, and/or migrate a
   movie into its own subfolder, which Jellyfin requires to recognize a local trailer at all when movies otherwise
   share a flat folder ([jellyfin/jellyfin#10077](https://github.com/jellyfin/jellyfin/issues/10077)).
+- **Clean series/season folder names** - can rename a TV series' own top-level folder to its resolved title and its
+  season subfolders to Jellyfin's canonical `Season NN` naming, fixing a messy release-style folder name (tags,
+  resolution, season ranges, ...) that confuses Jellyfin's own poster match and displayed title even when trailer
+  search itself already works fine. Episode files are never touched.
 - **Theme songs** - optionally fetches a local `theme.mp3` too, looked up on
   [ThemerrDB](https://github.com/LizardByte/ThemerrDB) (the same curated database the
   [Themerr-jellyfin](https://github.com/LizardByte/Themerr-jellyfin) plugin uses) and downloaded through this
@@ -59,12 +64,12 @@ dashboard instead of a `.env` file.
 
 1. In Jellyfin, go to **Dashboard → Plugins → Repositories** and add a repository with this URL:
    ```
-   https://raw.githubusercontent.com/grexe/jellyfin-trailer-fetcher/main/plugin/manifest.json
+   https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/manifest.json
    ```
-2. Go to **Catalog**, find **Trailer Fetcher** under General, and install it.
+2. Go to **Catalog**, find **Jellyfin Enricherr** under General, and install it.
 3. Restart Jellyfin.
-4. Open the plugin's settings page (**Dashboard → Plugins → Trailer Fetcher**) to configure it, and/or run the
-   **Fetch Missing Trailers** scheduled task (**Dashboard → Scheduled Tasks**) to try it.
+4. Open the plugin's settings page (**Dashboard → Plugins → Jellyfin Enricherr**) to configure it, and/or run the
+   **Fetch Theme Music and Trailers** scheduled task (**Dashboard → Scheduled Tasks**) to try it.
 
 ## Configuration
 
@@ -72,16 +77,17 @@ Settings are grouped on the plugin's page:
 
 - **Scanning** - which libraries to scan, whether to trigger a Jellyfin library scan after changes, and the
   maximum trailer duration to accept.
-- **Quality** - the minimum acceptable trailer resolution, and whether to re-check/upgrade existing trailers that
-  fall short of it.
-- **Organisation** - renaming the original movie file and/or migrating movies into their own folder.
+- **Audio/Video** - the minimum acceptable trailer resolution and audio-language preference, honored on every
+  search, plus whether to also re-check/upgrade existing trailers that fall short.
+- **Organisation** - renaming the original movie file, migrating movies into their own folder, and cleaning up
+  series/season folder names.
 - **Theme Songs** - whether to also fetch a local theme song via ThemerrDB.
 - **Network** - a cookies file for authenticated/age-restricted access, pacing between requests, and the
   rate-limit retry behavior.
 - **Debugging and Testing** - dry-run mode and verbose per-candidate logging.
 
-See the [full configuration reference](https://grexe.github.io/jellyfin-trailer-fetcher/configuration.html) for
-what every setting does, and the [documentation](https://grexe.github.io/jellyfin-trailer-fetcher/) generally for
+See the [full configuration reference](https://grexe.github.io/jellyfin-enricherr/configuration.html) for
+what every setting does, and the [documentation](https://grexe.github.io/jellyfin-enricherr/) generally for
 how the plugin behaves and troubleshooting help.
 
 ## Building from source
@@ -92,7 +98,7 @@ cd plugin
 ```
 
 Builds the plugin and produces a versioned zip under `plugin/dist/`. See
-[`plugin/Jellyfin.Plugin.TrailerFetcher/`](plugin/Jellyfin.Plugin.TrailerFetcher/) for the source.
+[`plugin/Jellyfin.Plugin.Enricherr/`](plugin/Jellyfin.Plugin.Enricherr/) for the source.
 
 ## The legacy standalone script
 

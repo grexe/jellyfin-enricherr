@@ -1,22 +1,24 @@
 ---
-name: "Trailer Fetcher"
-guid: "03385b47-ccda-4a9e-86a2-c0b1f80fa332"
-version: "0.13.0.2"
+name: "Jellyfin Enricherr"
+guid: "04035fb7-8ca5-4bbf-a65b-7608c36e4e04"
+version: "1.0.0.0"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
-overview: "Finds and downloads missing local trailers for movies and TV series from YouTube via yt-dlp."
-imageUrl: "https://raw.githubusercontent.com/grexe/jellyfin-trailer-fetcher/main/plugin/images/logo.png"
+overview: "Finds and downloads missing local trailers and theme songs for movies and TV series, and cleans up messy release-style folder/file names."
+imageUrl: "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png"
 description: >
-  Scans the library for missing local trailers - movies and TV series - searches
-  YouTube via yt-dlp using sequel-aware title matching, downloads matches into
-  "<title>-trailer.ext", and can migrate movies into their own folder - required for
+  Scans the library for missing local trailers and theme songs - movies and TV
+  series - searches YouTube via yt-dlp using sequel-aware title matching, downloads
+  matches into "<title>-trailer.ext"/theme.mp3, and can rename/migrate movies and
+  series into their own folder with clean, release-noise-free names - required for
   Jellyfin to recognize a local movie trailer at all when movies otherwise share a
   flat folder (see https://github.com/jellyfin/jellyfin/issues/10077); a series
-  always already has its own folder, so that step doesn't apply there.
+  always already has its own folder, so migration doesn't apply there, though its
+  own folder/season naming can still be cleaned up.
 category: "General"
 owner: "grexe"
 artifacts:
-- "Jellyfin.Plugin.TrailerFetcher.dll"
+- "Jellyfin.Plugin.Enricherr.dll"
 changelog: >
   0.10.2.0: Added an "Allow upgrading trailers in a different language" setting,
   next to "Upgrade low-quality trailers" - the language equivalent of the
@@ -39,7 +41,7 @@ changelog: >
   run's own numbers) and "Overall" (one row per actual Jellyfin library, always
   every library regardless of current scan scope, not just the movie/series totals
   from before) - both sharing the same Library/Items/Trailers/Theme songs columns so
-  switching tabs compares like with like. /TrailerFetcher/LibraryTotals now returns
+  switching tabs compares like with like. /Enricherr/LibraryTotals now returns
   one row per library instead of a flat movies/series total, resolved via
   LibraryItemsFinder scoped to each library individually. Verified both tabs and the
   toggle behavior in a real browser against a local stub of the actual configPage.html.
@@ -59,7 +61,7 @@ changelog: >
   logic directly (language-code resolution including "de-DE"-style fallback to the
   primary subtag, and real foreign-language sample titles all correctly
   recognized). (2) The settings page's Statistics section now also shows
-  library-wide totals (via a new /TrailerFetcher/LibraryTotals endpoint) - how many
+  library-wide totals (via a new /Enricherr/LibraryTotals endpoint) - how many
   movies/series currently have a trailer or theme song right now, computed fresh
   each page load, not just what the last run happened to find or download.
   Refactored the movie/series library-querying logic (previously 4 near-duplicate
@@ -515,7 +517,7 @@ changelog: >
   no longer masks a deliberate task cancellation as an ordinary download failure,
   either. The last run's summary (the same numbers logged as "TRAILER SYNC
   SUMMARY") is now also persisted and shown on the settings page
-  (GET /TrailerFetcher/LastRunSummary), not just buried in the log.
+  (GET /Enricherr/LastRunSummary), not just buried in the log.
 
 
   0.6.1.0: Removed the "yt-dlp executable" setting entirely - the plugin now always
@@ -590,7 +592,7 @@ changelog: >
 
   0.3.2.0: This plugin's own log entries (scheduled task runs, cookie upload/removal,
   etc.) now also get mirrored into their own file
-  (plugins/Jellyfin.Plugin.TrailerFetcher/trailer-fetcher.log) via a scoped
+  (plugins/Jellyfin.Plugin.Enricherr/enricherr.log) via a scoped
   ILoggerProvider, so a run can be inspected without wading through the main server
   log. No change to what's logged, just where.
 

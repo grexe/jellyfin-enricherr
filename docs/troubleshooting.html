@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Troubleshooting — Trailer Fetcher</title>
+<title>Troubleshooting — Jellyfin Enricherr</title>
 <link rel="icon" href="assets/logo.png">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -11,14 +11,14 @@
 <header class="site-header">
   <div class="site-header-inner">
     <img src="assets/logo.png" alt="">
-    <span class="site-title">Trailer Fetcher</span>
+    <span class="site-title">Jellyfin Enricherr</span>
     <nav class="site-nav">
       <a href="index.html">Home</a>
       <a href="installation.html">Installation</a>
       <a href="configuration.html">Configuration</a>
       <a href="how-it-works.html">How It Works</a>
       <a href="troubleshooting.html" class="active">Troubleshooting</a>
-      <a href="https://github.com/grexe/jellyfin-trailer-fetcher">GitHub</a>
+      <a href="https://github.com/grexe/jellyfin-enricherr">GitHub</a>
     </nav>
   </div>
 </header>
@@ -26,7 +26,7 @@
 <main>
   <h1>Troubleshooting</h1>
   <p class="lede">
-    Start with the plugin's own log file: <code>&lt;plugin data folder&gt;/trailer-fetcher.log</code>. It has
+    Start with the plugin's own log file: <code>&lt;plugin data folder&gt;/enricherr.log</code>. It has
     everything below in more detail than Jellyfin's main server log.
   </p>
 
@@ -38,7 +38,7 @@
     <li>Check the media file's extension is recognized as a valid video file. Uncommon or very old
       containers may not be — see the log for a line like
       <code>Skipping "Title": "Not a video file (extension: .xyz)"</code>. If you hit this on a legitimate
-      video file, <a href="https://github.com/grexe/jellyfin-trailer-fetcher/issues">open an issue</a> with
+      video file, <a href="https://github.com/grexe/jellyfin-enricherr/issues">open an issue</a> with
       the extension.</li>
     <li>Check the file isn't being treated as a sample, extra, or existing trailer — files named/placed
       like one are deliberately skipped.</li>
@@ -128,16 +128,16 @@
 
   <h2>Still stuck?</h2>
   <p>
-    <a href="https://github.com/grexe/jellyfin-trailer-fetcher/issues">Open an issue on GitHub</a> with the
-    relevant section of <code>trailer-fetcher.log</code> (with <a href="configuration.html">Verbose
+    <a href="https://github.com/grexe/jellyfin-enricherr/issues">Open an issue on GitHub</a> with the
+    relevant section of <code>enricherr.log</code> (with <a href="configuration.html">Verbose
     logging</a> on if it's a matching/filtering question).
   </p>
 </main>
 
 <footer>
-  Trailer Fetcher is free/open source software.
-  <a href="https://github.com/grexe/jellyfin-trailer-fetcher">Source on GitHub</a> ·
-  <a href="https://github.com/grexe/jellyfin-trailer-fetcher/issues">Report an issue</a>
+  Jellyfin Enricherr is free/open source software.
+  <a href="https://github.com/grexe/jellyfin-enricherr">Source on GitHub</a> ·
+  <a href="https://github.com/grexe/jellyfin-enricherr/issues">Report an issue</a>
 </footer>
 </body>
 </html>
