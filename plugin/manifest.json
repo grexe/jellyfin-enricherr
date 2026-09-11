@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png",
     "versions": [
       {
+        "version": "1.0.0.1",
+        "changelog": "Critical fix found immediately after installing 1.0.0.0 fresh: configPage.html's settings page still hardcoded the OLD plugin's GUID (03385b47-...) in its JavaScript API calls, missed because the rename's GUID-replacement search only covered .cs/.json/.yaml files, not .html. This meant the new plugin's settings page was actually reading and would have WRITTEN the old, separately-installed \"Trailer Fetcher\" plugin's live configuration - a real risk if anyone saved settings from the new page while both are installed side by side during migration. Fixed to use the new GUID. No settings were actually overwritten before this was caught.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.0.0.1.zip",
+        "checksum": "9fe2bbdde8f1ad2b49e83aed835ea70f",
+        "timestamp": "2026-09-11T09:53:15Z"
+      },
+      {
         "version": "1.0.0.0",
         "changelog": "Renamed from \"Trailer Fetcher\" to \"Jellyfin Enricherr\" - the plugin outgrew a trailers-only name weeks ago (theme songs, series/season folder cleanup, movie renaming), and this marks the first release considered stable after an extended period of live overnight testing across real movie and anime libraries. C# namespace/assembly (Jellyfin.Plugin.TrailerFetcher -> Jellyfin.Plugin.Enricherr), repo, and plugin GUID all changed - this is a fresh install for existing users, not an in-place update (uninstall the old plugin first; your media/settings are untouched either way, only the plugin's own identity changed). No functional changes beyond the rename itself and refreshing the plugin description/task name to reflect everything it now does (trailers, theme songs, quality upgrades, folder/file renaming) rather than just trailers.",
         "targetAbi": "10.11.0.0",
