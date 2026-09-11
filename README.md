@@ -56,7 +56,7 @@ from this repository; this section stays as a record of where the plugin came fr
 
 ## Requirements
 
-- Jellyfin 10.11.x
+- Jellyfin 10.11.x — verified working through 12.0
 - Outbound internet access from the server (to reach YouTube and to download the plugin's managed `yt-dlp`/`deno`
   binaries on first run)
 
