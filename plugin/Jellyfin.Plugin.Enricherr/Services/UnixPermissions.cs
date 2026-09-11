@@ -51,6 +51,34 @@ public static class UnixPermissions
                 // own file/directory type, not something to propagate onto a file.
                 mode &= ~(UnixFileMode.UserExecute | UnixFileMode.GroupExecute | UnixFileMode.OtherExecute);
             }
+            else if (Directory.Exists(newPath))
+            {
+                // Confirmed live: the opposite direction was missing entirely - a
+                // reference that's a plain FILE (the common case: healing a movie's
+                // own folder using the movie file itself) naturally has no execute
+                // bits at all, and copying that mode onto a DIRECTORY verbatim wiped
+                // out its execute/traverse bit, making it inaccessible - even to its
+                // own owner, since this ran as whatever elevated access this plugin's
+                // host process has, not a normal user who'd have been blocked from
+                // creating that state by their own shell. A directory always needs
+                // execute wherever it grants read or write, regardless of what the
+                // reference's own bits look like - the same "chmod +X" convention
+                // every Unix tool uses for exactly this reason.
+                if ((mode & (UnixFileMode.UserRead | UnixFileMode.UserWrite)) != 0)
+                {
+                    mode |= UnixFileMode.UserExecute;
+                }
+
+                if ((mode & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite)) != 0)
+                {
+                    mode |= UnixFileMode.GroupExecute;
+                }
+
+                if ((mode & (UnixFileMode.OtherRead | UnixFileMode.OtherWrite)) != 0)
+                {
+                    mode |= UnixFileMode.OtherExecute;
+                }
+            }
 
             File.SetUnixFileMode(newPath, mode);
         }
