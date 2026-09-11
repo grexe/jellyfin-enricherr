@@ -33,6 +33,43 @@ public class LibraryItemsFinder
         _logger = logger;
     }
 
+    /// <summary>
+    /// Resolves which libraries are in scope for a run - the specifically configured
+    /// ones, or every library on the server if none were configured - each already
+    /// resolved to its own root <see cref="BaseItem"/> rather than just an id, since
+    /// a scoped scan (<see cref="Folder.ValidateChildren(IProgress{double}, System.Threading.CancellationToken)"/>) needs the actual item to
+    /// call it on, not just its id string.
+    /// </summary>
+    /// <param name="libraryIds">Configured library (VirtualFolder) ids, or empty for every library.</param>
+    public List<BaseItem> ResolveLibrariesInScope(string[] libraryIds)
+    {
+        if (libraryIds.Length > 0)
+        {
+            return ResolveLibraries(libraryIds, logProgress: true).ToList();
+        }
+
+        var libraries = new List<BaseItem>();
+        foreach (var folderInfo in _libraryManager.GetVirtualFolders().OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!Guid.TryParse(folderInfo.ItemId, out var guid))
+            {
+                _logger.LogWarning("Library {Name} has an unparseable id {Id}, skipping it.", folderInfo.Name, folderInfo.ItemId);
+                continue;
+            }
+
+            var libraryItem = _libraryManager.GetItemById(guid);
+            if (libraryItem is null)
+            {
+                _logger.LogWarning("Library {Name} ({Id}) did not resolve to any item, skipping it.", folderInfo.Name, folderInfo.ItemId);
+                continue;
+            }
+
+            libraries.Add(libraryItem);
+        }
+
+        return libraries;
+    }
+
     /// <summary>Movies in scope: every library if <paramref name="libraryIds"/> is empty, otherwise just those.</summary>
     /// <param name="libraryIds">Configured library (VirtualFolder) ids, or empty for every library.</param>
     /// <param name="logProgress">Whether to log per-library progress - on for an actual run, off for a quick read-only count.</param>

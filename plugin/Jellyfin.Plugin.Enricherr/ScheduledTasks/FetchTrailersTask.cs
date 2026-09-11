@@ -93,11 +93,27 @@ public class FetchTrailersTask : IScheduledTask
             config.DryRun,
             config.TriggerLibraryScan);
 
+        // Processed one library at a time - not one flat movies-then-series pass
+        // across every configured library - so a scan triggered once a library is
+        // done never has to wait for every other library to finish too. Most
+        // libraries only ever contain one of movies/series anyway (a "mixed" library
+        // is rare, and makes metadata matching harder regardless), and scan scope is
+        // already configured per-library on this plugin's settings page, so this
+        // also matches how an admin already thinks about "which library did this
+        // affect" rather than treating the whole configured scan scope as one unit.
         var libraryIds = config.LibraryIds ?? Array.Empty<string>();
-        var movies = _libraryItemsFinder.GetMovies(libraryIds);
-        var series = _libraryItemsFinder.GetSeries(libraryIds);
+        var libraries = _libraryItemsFinder.ResolveLibrariesInScope(libraryIds);
+        var libraryBatches = libraries
+            .Select(lib => new LibraryBatch(lib, _libraryItemsFinder.GetMovies([lib.Id.ToString()]), _libraryItemsFinder.GetSeries([lib.Id.ToString()])))
+            .ToList();
 
-        _logger.LogInformation("Found {MovieCount} movie(s) and {SeriesCount} series to process.", movies.Count, series.Count);
+        var totalMovies = libraryBatches.Sum(b => b.Movies.Count);
+        var totalSeries = libraryBatches.Sum(b => b.Series.Count);
+        _logger.LogInformation(
+            "Found {MovieCount} movie(s) and {SeriesCount} series to process across {LibraryCount} librar(y/ies).",
+            totalMovies,
+            totalSeries,
+            libraryBatches.Count);
 
         string? ffmpegDir = null;
         try
@@ -122,7 +138,8 @@ public class FetchTrailersTask : IScheduledTask
         var ytDlp = await BuildYtDlpClientAsync(config, ffmpegDir, cancellationToken).ConfigureAwait(false);
         var themerrDb = new ThemerrDbClient(_httpClientFactory, _logger);
         var stats = new TrailerFetchStats();
-        var totalItems = movies.Count + series.Count;
+        var totalItems = totalMovies + totalSeries;
+        var itemsProcessedSoFar = 0;
         var startedAt = DateTime.UtcNow;
 
         // Cancelling a run (e.g. from the dashboard), or YouTube rate-limiting the
@@ -136,43 +153,103 @@ public class FetchTrailersTask : IScheduledTask
         // a clear ERROR-level log line and a distinct stop reason in the summary).
         OperationCanceledException? cancellation = null;
         string? stopReason = null;
+        var libraryIndex = 0;
         var movieIndex = 0;
         var seriesIndex = 0;
         var hasRetriedRateLimit = false;
 
+        // Per-library "before" snapshots, so a rate-limit retry resuming mid-library
+        // doesn't lose track of changes already made earlier in that same library -
+        // taken exactly once per library (guarded by librarySnapshotTaken below), not
+        // re-taken every time the retry loop below re-enters that library's block.
+        var librarySnapshotTaken = new bool[libraryBatches.Count];
+        var downloadedBeforeByLibrary = new int[libraryBatches.Count];
+        var themeSongsBeforeByLibrary = new int[libraryBatches.Count];
+        var renamedBeforeByLibrary = new int[libraryBatches.Count];
+        var migratedBeforeByLibrary = new int[libraryBatches.Count];
+
         // There's no reliable way to know when YouTube's own rate limit actually
         // lifts (its own message only states an upper bound), so on the first hit
         // this waits once and resumes the SAME run from wherever it stopped (the
-        // movie/series indices are tracked outside the try so a retry doesn't
-        // restart from scratch) rather than looping/backing off indefinitely - a
-        // retry that also gets rate-limited stops the run for good.
+        // library/movie/series indices are tracked outside the try so a retry
+        // doesn't restart from scratch) rather than looping/backing off indefinitely
+        // - a retry that also gets rate-limited stops the run for good.
         while (true)
         {
             try
             {
-                stats.MoviePhaseStarted = true;
-                for (; movieIndex < movies.Count; movieIndex++)
+                for (; libraryIndex < libraryBatches.Count; libraryIndex++)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await ProcessMovieAsync(movies[movieIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
-                    progress.Report((movieIndex + 1) * 100.0 / totalItems);
+                    var batch = libraryBatches[libraryIndex];
 
-                    // A movie/series that completes without hitting the rate limit again
-                    // is proof the limit actually lifted, not just that we got lucky once
-                    // - re-arm the single retry so a *later* rate limit in this same run
-                    // (a large backlog can plausibly retrigger it more than once) gets its
-                    // own chance to wait-and-resume too, instead of always giving up
-                    // immediately after the first retry has ever been used.
-                    hasRetriedRateLimit = false;
-                }
+                    // Snapshot before this library's own movie+series phases, so we can
+                    // tell afterward whether THIS library specifically had anything
+                    // worth rescanning for - triggering a scan for a library nothing
+                    // changed in would be pure overhead.
+                    if (!librarySnapshotTaken[libraryIndex])
+                    {
+                        downloadedBeforeByLibrary[libraryIndex] = stats.Downloaded + stats.SeriesDownloaded;
+                        themeSongsBeforeByLibrary[libraryIndex] = stats.ThemeSongDownloaded + stats.SeriesThemeSongDownloaded;
+                        renamedBeforeByLibrary[libraryIndex] = stats.Renamed + stats.SeriesRenamed + stats.SeriesSeasonsRenamed;
+                        migratedBeforeByLibrary[libraryIndex] = stats.Migrated;
+                        librarySnapshotTaken[libraryIndex] = true;
+                    }
 
-                stats.SeriesPhaseStarted = true;
-                for (; seriesIndex < series.Count; seriesIndex++)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await ProcessSeriesAsync(series[seriesIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
-                    progress.Report((movies.Count + seriesIndex + 1) * 100.0 / totalItems);
-                    hasRetriedRateLimit = false;
+                    stats.MoviePhaseStarted = true;
+                    for (; movieIndex < batch.Movies.Count; movieIndex++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await ProcessMovieAsync(batch.Movies[movieIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
+                        itemsProcessedSoFar++;
+                        progress.Report(itemsProcessedSoFar * 100.0 / totalItems);
+
+                        // A movie/series that completes without hitting the rate limit
+                        // again is proof the limit actually lifted, not just that we got
+                        // lucky once - re-arm the single retry so a *later* rate limit in
+                        // this same run (a large backlog can plausibly retrigger it more
+                        // than once) gets its own chance to wait-and-resume too, instead
+                        // of always giving up immediately after the first retry has ever
+                        // been used.
+                        hasRetriedRateLimit = false;
+                    }
+
+                    movieIndex = 0;
+
+                    stats.SeriesPhaseStarted = true;
+                    for (; seriesIndex < batch.Series.Count; seriesIndex++)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await ProcessSeriesAsync(batch.Series[seriesIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
+                        itemsProcessedSoFar++;
+                        progress.Report(itemsProcessedSoFar * 100.0 / totalItems);
+                        hasRetriedRateLimit = false;
+                    }
+
+                    seriesIndex = 0;
+
+                    if (config.TriggerLibraryScan && !config.DryRun)
+                    {
+                        var downloaded = stats.Downloaded + stats.SeriesDownloaded - downloadedBeforeByLibrary[libraryIndex];
+                        var themeSongsDownloaded = stats.ThemeSongDownloaded + stats.SeriesThemeSongDownloaded - themeSongsBeforeByLibrary[libraryIndex];
+                        var renamed = stats.Renamed + stats.SeriesRenamed + stats.SeriesSeasonsRenamed - renamedBeforeByLibrary[libraryIndex];
+                        var migrated = stats.Migrated - migratedBeforeByLibrary[libraryIndex];
+
+                        if (downloaded > 0 || migrated > 0 || themeSongsDownloaded > 0 || renamed > 0)
+                        {
+                            _logger.LogInformation(
+                                "Triggering a scan of library {Library} to pick up {Downloaded} new trailer(s), {ThemeSongs} new theme song(s), {Migrated} migrated movie(s), and {Renamed} renamed movie(s)/series folder(s)...",
+                                batch.LibraryItem.Name,
+                                downloaded,
+                                themeSongsDownloaded,
+                                migrated,
+                                renamed);
+                            await ScanLibraryAsync(batch.LibraryItem, cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Library {Library}: no new trailers, theme songs, migrations, or renames; skipping its scan.", batch.LibraryItem.Name);
+                        }
+                    }
                 }
 
                 break;
@@ -213,38 +290,45 @@ public class FetchTrailersTask : IScheduledTask
             }
         }
 
-        LogSummary(stats, movies.Count, series.Count, config.DryRun, startedAt, stopReason);
+        LogSummary(stats, totalMovies, totalSeries, config.DryRun, startedAt, stopReason);
 
         if (cancellation is not null)
         {
             _logger.LogInformation("Run cancelled - see the summary above for what was found before it stopped.");
             throw cancellation;
         }
+    }
 
-        // Trigger a single library scan (not one per movie/series) so Jellyfin picks up
-        // every newly downloaded trailer/theme song file, and any moved/migrated paths,
-        // in one pass.
-        if (config.TriggerLibraryScan && !config.DryRun)
+    /// <summary>
+    /// Scans just one library rather than the whole server (<see cref="ILibraryManager.QueueLibraryScan"/>),
+    /// so Jellyfin picks up that library's own new trailer/theme song files and
+    /// moved/renamed paths without needing to wait on - or re-validate - every other
+    /// library too. Awaited rather than fired-and-forgotten: letting Jellyfin's view
+    /// of this library fully settle before this run moves on to the next one avoids
+    /// stacking up multiple concurrent scans, which is exactly the kind of overlap
+    /// that can race a concurrent background job (e.g. trickplay generation) against
+    /// a save for an item whose row just changed underneath it.
+    /// </summary>
+    private async Task ScanLibraryAsync(BaseItem libraryItem, CancellationToken cancellationToken)
+    {
+        if (libraryItem is not Folder folder)
         {
-            var downloaded = stats.Downloaded + stats.SeriesDownloaded;
-            var themeSongsDownloaded = stats.ThemeSongDownloaded + stats.SeriesThemeSongDownloaded;
-            var renamed = stats.Renamed + stats.SeriesRenamed + stats.SeriesSeasonsRenamed;
-            if (downloaded > 0 || stats.Migrated > 0 || themeSongsDownloaded > 0 || renamed > 0)
-            {
-                _logger.LogInformation(
-                    "Triggering a Jellyfin library scan to pick up {Downloaded} new trailer(s), {ThemeSongs} new theme song(s), {Migrated} migrated movie(s), and {Renamed} renamed movie(s)/series folder(s)...",
-                    downloaded,
-                    themeSongsDownloaded,
-                    stats.Migrated,
-                    renamed);
-                _libraryManager.QueueLibraryScan();
-            }
-            else
-            {
-                _logger.LogInformation("No new trailers, theme songs, migrations, or renames; skipping Jellyfin library scan.");
-            }
+            _logger.LogWarning("Library {Library} is not a folder; falling back to a full server scan.", libraryItem.Name);
+            _libraryManager.QueueLibraryScan();
+            return;
+        }
+
+        try
+        {
+            await folder.ValidateChildren(new Progress<double>(), cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Scan of library {Library} failed.", libraryItem.Name);
         }
     }
+
+    private sealed record LibraryBatch(BaseItem LibraryItem, List<Movie> Movies, List<Series> Series);
 
     /// <summary>
     /// Resolves the yt-dlp and deno executables to use, downloading and managing both

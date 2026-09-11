@@ -250,13 +250,15 @@ flowchart TD
     is always left untouched.
   </p>
 
-  <h2>8. Summary and library scan</h2>
+  <h2>8. Summary and library scans</h2>
   <p>
-    At the end of a run, a summary is logged and saved for the settings page's <a
-    href="configuration.html">Statistics</a> section — counts of scanned/downloaded/upgraded/skipped (and
-    theme songs, if enabled) for movies and series separately, and why the run stopped early if it did. If
-    anything was downloaded or moved and <a href="configuration.html">Trigger a library scan</a> is on, a
-    single Jellyfin library scan is triggered so the changes show up immediately.
+    A run processes one library at a time (its movies, then its series), and if anything in that library
+    was downloaded, moved, or renamed and <a href="configuration.html">Trigger a library scan</a> is on,
+    just that library is scanned as soon as its own phase finishes — not the whole server, and not deferred
+    until every other configured library is also done. At the end of the whole run, a summary is logged and
+    saved for the settings page's <a href="configuration.html">Statistics</a> section — counts of
+    scanned/downloaded/upgraded/skipped (and theme songs, if enabled) for movies and series separately, and
+    why the run stopped early if it did.
   </p>
 
   <h2>Dependencies</h2>
