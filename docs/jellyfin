@@ -6,7 +6,7 @@
     "overview": "Finds and downloads missing local trailers and theme songs for movies and TV series, and cleans up messy release-style folder/file names.",
     "owner": "grexe",
     "category": "General",
-    "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png",
+    "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
         "version": "1.1.0.1",

@@ -5,7 +5,7 @@ version: "1.1.0.1"
 targetAbi: "10.11.0.0"
 framework: "net9.0"
 overview: "Finds and downloads missing local trailers and theme songs for movies and TV series, and cleans up messy release-style folder/file names."
-imageUrl: "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png"
+imageUrl: "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png"
 description: >
   Scans the library for missing local trailers and theme songs - movies and TV
   series - searches YouTube via yt-dlp using sequel-aware title matching, downloads
