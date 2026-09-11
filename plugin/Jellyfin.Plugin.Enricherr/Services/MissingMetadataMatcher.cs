@@ -100,15 +100,32 @@ public class MissingMetadataMatcher
             searchTitles.Add(strippedTitle);
         }
 
+        // Each title is tried with the year first, then - confirmed live, the exact
+        // "75 cl Schicksal" case above - without it: TMDb's own search appears to use
+        // the year as a hard filter, excluding an otherwise-perfect title match when
+        // its own recorded release year doesn't exactly line up with ours. Safe to
+        // drop here since the scoring step below already re-checks year (with its own
+        // +/-1 tolerance) against whatever comes back either way.
+        var searchAttempts = new System.Collections.Generic.List<(string Title, bool IncludeYear)>();
+        foreach (var title in searchTitles)
+        {
+            searchAttempts.Add((title, true));
+        }
+
+        if (year is not null)
+        {
+            searchAttempts.Add((searchTitles[^1], false));
+        }
+
         var results = new System.Collections.Generic.List<RemoteSearchResult>();
-        foreach (var searchTitle in searchTitles)
+        foreach (var attempt in searchAttempts)
         {
             var query = new RemoteSearchQuery<MovieInfo>
             {
                 SearchInfo = new MovieInfo
                 {
-                    Name = searchTitle,
-                    Year = year,
+                    Name = attempt.Title,
+                    Year = attempt.IncludeYear ? year : null,
                     MetadataLanguage = movie.GetPreferredMetadataLanguage(),
                     MetadataCountryCode = movie.GetPreferredMetadataCountryCode()
                 }
@@ -120,7 +137,7 @@ public class MissingMetadataMatcher
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning("  > Metadata search for \"{Title}\" failed: {Error}", searchTitle, ex.Message);
+                _logger.LogWarning("  > Metadata search for \"{Title}\" failed: {Error}", attempt.Title, ex.Message);
                 continue;
             }
 

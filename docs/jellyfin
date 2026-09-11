@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.4.1.1",
+        "changelog": "Fixed another missing-metadata search gap found live: TMDb search - confirmed by hand at themoviedb.org - returns \"75 cl Schicksal\" fine with no year filter, but the API-level search with the resolved year attached found nothing, apparently treating the year as a hard filter rather than a hint. Since the scoring step already re-checks the candidate's year (with its own +/-1 tolerance) against whatever comes back, it's safe to also retry once without a year at all if every year-qualified attempt (full title, then archive-suffix-stripped title) came back empty.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.4.1.1.zip",
+        "checksum": "6242359105333afc995bbe7e5a0152de",
+        "timestamp": "2026-09-11T18:44:20Z"
+      },
+      {
         "version": "1.4.1.0",
         "changelog": "Three fixes/improvements found live right after 1.4.0.0. (1) Missing-metadata search was coming back with 0 results for every archive-numbered title tested (\"75 cl Schicksal-035082-000-A\") - the archive-number suffix was still attached to the actual search query (only the later scoring step was tolerant of it), and a remote search API isn't necessarily as forgiving of a noisy query as TMDb's own web search is. Now retries once with that suffix heuristically stripped if the first search comes back empty. (2) \"Show setting descriptions\" now persists across visits via this browser's localStorage instead of always resetting to shown on every page load, per feedback that resetting was annoying to re-toggle every time. (3) Live run progress now gets its own \"Current run\" tab (first position, before \"Last run\") instead of temporarily overlaying the \"Last run\" tab's own content - \"Last run\" now always shows only the last completed run, never a live one, and \"Current run\" shows \"No run currently in progress\" the rest of the time.",
         "targetAbi": "10.11.0.0",
