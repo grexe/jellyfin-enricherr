@@ -113,6 +113,18 @@ public static partial class TitleMatching
             }
         }
 
+        // Captured before the track-number/noise-word stripping below, which can
+        // legitimately consume the ENTIRE remaining text (e.g. a release named just
+        // "BLU-RAY (2013)" - "blu-ray" is itself a recognized source-tag noise word,
+        // same as "bdrip"/"webrip"). A caller with a "use the cleaned title, or fall
+        // back to the fully raw one if cleaning left nothing" pattern (several do)
+        // needs this year-stripped-but-otherwise-untouched text as that fallback -
+        // not the fully raw, never-cleaned title. Confirmed live: falling back to the
+        // fully raw title reintroduced the very year this method had just correctly
+        // identified and stripped, and since a rename then re-appended that year onto
+        // the (still duplicate-laden) raw text, it grew by one more "(2013)" every run.
+        var yearStripped = Regex.Replace(s, @"\s+", " ").Trim();
+
         // Only a punctuation-anchored prefix ("01. ", "01 - ", "01_") is treated as a
         // scene-release/track-number artifact to strip. A bare "number + space" prefix
         // (no separator) was also stripped here previously, but that has no structural
@@ -132,6 +144,11 @@ public static partial class TitleMatching
         s = Regex.Replace(s, @"\s*-\s*$", string.Empty);
         s = Regex.Replace(s, @"^\s*-\s*", string.Empty);
         s = Regex.Replace(s, @"\s+", " ").Trim();
+
+        if (s.Length == 0 && yearStripped.Length > 0)
+        {
+            s = yearStripped;
+        }
 
         return (s, year);
     }

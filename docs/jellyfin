@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.1.1.2",
+        "changelog": "Fixed a real runaway bug found live: a release whose entire title is itself a recognized source/quality noise word (e.g. a demo disc literally named \"BLU-RAY (2013)\" - \"blu-ray\" is stripped the same as \"bdrip\"/\"webrip\") ended up with an EMPTY cleaned title once its year was also stripped, since nothing else survived cleaning. Every caller's \"use the cleaned title, or fall back to the raw one if cleaning left nothing\" pattern then fell all the way back to the fully RAW, never-cleaned title - silently reintroducing the very year TitleMatching.CleanMediaTitle had just correctly identified and stripped. Since the rename step then appended that year again, a repeat run grew the name by one more \"(2013)\" every time - confirmed live, a folder/file reached \"(2013) (2013) (2013) (2013)\" after four runs. CleanMediaTitle now falls back to its own year-stripped (but not noise-word-stripped) text in that case, instead of callers reverting all the way to the untouched raw title - this also self-heals an already-corrupted name, since the year-removal step strips every repeat regardless of count.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.1.2.zip",
+        "checksum": "ef7e61402603f300b25d9708a2c83d86",
+        "timestamp": "2026-09-11T14:13:54Z"
+      },
+      {
         "version": "1.1.1.1",
         "changelog": "Flipped \"Fix file/folder permissions\" (added in 1.1.1.0) to off by default. This plugin changing filesystem permissions on its own is an intrusive default for a fresh install, especially given a real bug in this exact mechanism (0.8.28.0-1.1.0.3, fixed in 1.1.0.4) briefly broke directory access on a live server before being caught. An admin who actually hits permission errors can now opt in deliberately instead.",
         "targetAbi": "10.11.0.0",
