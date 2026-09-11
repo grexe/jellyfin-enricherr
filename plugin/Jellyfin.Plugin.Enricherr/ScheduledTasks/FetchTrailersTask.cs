@@ -141,6 +141,7 @@ public class FetchTrailersTask : IScheduledTask
         var totalItems = totalMovies + totalSeries;
         var itemsProcessedSoFar = 0;
         var startedAt = DateTime.UtcNow;
+        var lastLiveProgressWrite = DateTime.MinValue;
 
         // Cancelling a run (e.g. from the dashboard), or YouTube rate-limiting the
         // session, must still leave the summary reflecting whatever was found before
@@ -202,6 +203,7 @@ public class FetchTrailersTask : IScheduledTask
                         await ProcessMovieAsync(batch.Movies[movieIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
                         itemsProcessedSoFar++;
                         progress.Report(itemsProcessedSoFar * 100.0 / totalItems);
+                        SaveLiveProgressIfDue(ref lastLiveProgressWrite, stats, batch.LibraryItem.Name, libraryIndex, libraryBatches.Count, itemsProcessedSoFar, totalItems, totalMovies, totalSeries, config.DryRun, startedAt);
 
                         // A movie/series that completes without hitting the rate limit
                         // again is proof the limit actually lifted, not just that we got
@@ -222,6 +224,7 @@ public class FetchTrailersTask : IScheduledTask
                         await ProcessSeriesAsync(batch.Series[seriesIndex], config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
                         itemsProcessedSoFar++;
                         progress.Report(itemsProcessedSoFar * 100.0 / totalItems);
+                        SaveLiveProgressIfDue(ref lastLiveProgressWrite, stats, batch.LibraryItem.Name, libraryIndex, libraryBatches.Count, itemsProcessedSoFar, totalItems, totalMovies, totalSeries, config.DryRun, startedAt);
                         hasRetriedRateLimit = false;
                     }
 
@@ -290,6 +293,7 @@ public class FetchTrailersTask : IScheduledTask
             }
         }
 
+        LiveProgressStore.Clear(Plugin.Instance!.DataFolderPath);
         LogSummary(stats, totalMovies, totalSeries, config.DryRun, startedAt, stopReason);
 
         if (cancellation is not null)
@@ -326,6 +330,72 @@ public class FetchTrailersTask : IScheduledTask
         {
             _logger.LogWarning(ex, "Scan of library {Library} failed.", libraryItem.Name);
         }
+    }
+
+    /// <summary>
+    /// Writes a live-progress snapshot for the settings page to poll (see
+    /// <see cref="LiveProgressStore"/>), throttled to roughly once every 2.5 seconds -
+    /// called after every single movie/series, so writing on every one of them
+    /// (thousands, in a large library, most just "already has a trailer" skips taking
+    /// a few milliseconds each) would be needless disk I/O for updates nobody's
+    /// watching that quickly anyway.
+    /// </summary>
+    private static void SaveLiveProgressIfDue(
+        ref DateTime lastWrite,
+        TrailerFetchStats stats,
+        string currentLibrary,
+        int libraryIndex,
+        int libraryCount,
+        int itemsProcessed,
+        int totalItems,
+        int totalMovies,
+        int totalSeries,
+        bool dryRun,
+        DateTime startedAt)
+    {
+        var now = DateTime.UtcNow;
+        if (now - lastWrite < TimeSpan.FromSeconds(2.5))
+        {
+            return;
+        }
+
+        lastWrite = now;
+        LiveProgressStore.Save(
+            Plugin.Instance!.DataFolderPath,
+            new LiveProgress(
+                startedAt,
+                currentLibrary,
+                libraryIndex + 1,
+                libraryCount,
+                itemsProcessed,
+                totalItems,
+                dryRun,
+                totalMovies,
+                stats.Scanned,
+                stats.AlreadyHadTrailer,
+                stats.Downloaded,
+                stats.NotFound,
+                stats.Skipped,
+                stats.Renamed,
+                stats.Migrated,
+                totalSeries,
+                stats.SeriesScanned,
+                stats.SeriesAlreadyHadTrailer,
+                stats.SeriesDownloaded,
+                stats.SeriesNotFound,
+                stats.SeriesSkipped,
+                stats.MoviePhaseStarted,
+                stats.SeriesPhaseStarted,
+                stats.Upgraded,
+                stats.SeriesUpgraded,
+                stats.ThemeSongAlreadyHad,
+                stats.ThemeSongDownloaded,
+                stats.ThemeSongNotFound,
+                stats.SeriesThemeSongAlreadyHad,
+                stats.SeriesThemeSongDownloaded,
+                stats.SeriesThemeSongNotFound,
+                stats.SeriesRenamed,
+                stats.SeriesSeasonsRenamed));
     }
 
     private sealed record LibraryBatch(BaseItem LibraryItem, List<Movie> Movies, List<Series> Series);

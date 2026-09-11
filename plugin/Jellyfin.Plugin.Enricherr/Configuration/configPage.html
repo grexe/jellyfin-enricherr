@@ -339,6 +339,60 @@
                 }
             }
 
+            function formatDuration(totalSeconds) {
+                var seconds = Math.max(0, Math.round(totalSeconds || 0));
+                var h = Math.floor(seconds / 3600);
+                var m = Math.floor((seconds % 3600) / 60);
+                var s = seconds % 60;
+                if (h > 0) {
+                    return h + 'h ' + m + 'm';
+                }
+                if (m > 0) {
+                    return m + 'm ' + s + 's';
+                }
+                return s + 's';
+            }
+
+            // "0" and "never got to it" look identical as a bare count otherwise -
+            // e.g. a run that got rate-limited partway through movies, with series
+            // never touched, would show "Series processed: 0" exactly like a run that
+            // reached every series and matched none. moviesScanStarted/
+            // seriesScanStarted are missing (undefined) on summaries saved before
+            // this distinction existed - treat that the same as true, so old
+            // summaries keep showing their real counts.
+            function fmtCount(phaseStarted, count) {
+                return phaseStarted === false ? 'n/a' : count;
+            }
+
+            // Builds the "Last run" tab's Movies/TV series rows (same shape as the
+            // "Overall" tab's per-library rows, so switching tabs compares like with
+            // like) from anything shaped like a RunSummary or LiveProgress - both
+            // carry the same totalMovies/alreadyHadTrailer/downloaded/... fields, so
+            // a live in-progress snapshot renders through the exact same code path as
+            // a completed run's summary.
+            function buildStatsRows(summaryLike) {
+                var rows = [];
+                if (summaryLike.totalMovies > 0) {
+                    rows.push({
+                        name: 'Movies',
+                        items: summaryLike.totalMovies,
+                        trailers: fmtCount(summaryLike.moviesScanStarted, summaryLike.alreadyHadTrailer + summaryLike.downloaded),
+                        themeSongs: fmtCount(summaryLike.moviesScanStarted, summaryLike.themeSongAlreadyHad + summaryLike.themeSongDownloaded)
+                    });
+                }
+
+                if (summaryLike.totalSeries > 0) {
+                    rows.push({
+                        name: 'TV series',
+                        items: summaryLike.totalSeries,
+                        trailers: fmtCount(summaryLike.seriesScanStarted, summaryLike.seriesAlreadyHadTrailer + summaryLike.seriesDownloaded),
+                        themeSongs: fmtCount(summaryLike.seriesScanStarted, summaryLike.seriesThemeSongAlreadyHad + summaryLike.seriesThemeSongDownloaded)
+                    });
+                }
+
+                return rows;
+            }
+
             // Renders the "Library | Items | Trailers | Theme songs" table shared by
             // both Statistics tabs - "Last run" (Movies/TV series, from the last run's
             // own numbers) and "Overall" (one row per actual Jellyfin library, always
@@ -539,33 +593,17 @@
                         return;
                     }
 
-                    function formatDuration(totalSeconds) {
-                        var seconds = Math.max(0, Math.round(totalSeconds || 0));
-                        var h = Math.floor(seconds / 3600);
-                        var m = Math.floor((seconds % 3600) / 60);
-                        var s = seconds % 60;
-                        if (h > 0) {
-                            return h + 'h ' + m + 'm';
-                        }
-                        if (m > 0) {
-                            return m + 'm ' + s + 's';
-                        }
-                        return s + 's';
-                    }
-
                     var rows = [];
 
-                    // "0" and "never got to it" look identical as a bare count
-                    // otherwise - e.g. a run that got rate-limited partway through
-                    // movies, with series never touched, would show "Series
-                    // processed: 0" exactly like a run that reached every series and
-                    // matched none. moviesScanStarted/seriesScanStarted are missing
-                    // (undefined) on summaries saved before this distinction existed -
-                    // treat that the same as true, so old summaries keep showing their
-                    // real counts.
-                    function fmt(phaseStarted, count) {
-                        return phaseStarted === false ? 'n/a' : count;
-                    }
+                    // Restores visibility after a live-progress view (see
+                    // renderLiveProgress) hid this button - there's no per-run
+                    // Details breakdown to show while a run is still in progress.
+                    toggleButton.style.display = '';
+
+                    // Local alias - the Details breakdown below was written against a
+                    // same-named local before fmtCount was hoisted into a shared
+                    // top-level helper (also used by buildStatsRows / live progress).
+                    var fmt = fmtCount;
 
                     // "Last run" tab: a coarse Movies/TV series summary in the same
                     // shape as the "Overall" tab's per-library rows, so switching tabs
@@ -573,26 +611,7 @@
                     // migrated, upgraded, why a run stopped early, ...) stays in the
                     // Details toggle above - a different, more diagnostic kind of
                     // detail than "how much of my library is covered".
-                    var lastRunRows = [];
-                    if (summary.totalMovies > 0) {
-                        lastRunRows.push({
-                            name: 'Movies',
-                            items: summary.totalMovies,
-                            trailers: fmt(summary.moviesScanStarted, summary.alreadyHadTrailer + summary.downloaded),
-                            themeSongs: fmt(summary.moviesScanStarted, summary.themeSongAlreadyHad + summary.themeSongDownloaded)
-                        });
-                    }
-
-                    if (summary.totalSeries > 0) {
-                        lastRunRows.push({
-                            name: 'TV series',
-                            items: summary.totalSeries,
-                            trailers: fmt(summary.seriesScanStarted, summary.seriesAlreadyHadTrailer + summary.seriesDownloaded),
-                            themeSongs: fmt(summary.seriesScanStarted, summary.seriesThemeSongAlreadyHad + summary.seriesThemeSongDownloaded)
-                        });
-                    }
-
-                    statsData.lastRun = lastRunRows;
+                    statsData.lastRun = buildStatsRows(summary);
                     if (activeStatsTab === 'lastRun') {
                         renderStatsTable(statsData.lastRun);
                     }
@@ -739,6 +758,99 @@
                 });
             }
 
+            // Live progress: while a run is actively in progress, polls
+            // /Enricherr/LiveProgress and shows it in place of the (necessarily
+            // stale) last-completed-run view - the same stats table, via the same
+            // buildStatsRows/renderStatsTable used for a completed run, so this adds
+            // no new rendering logic, just a different, more current data source.
+            // Polls unconditionally whenever this page is open (cheap - a small GET
+            // every few seconds) rather than needing a "run just started" signal from
+            // anywhere else; the endpoint itself is the source of truth for whether a
+            // run is actually active (Jellyfin's own ITaskManager, not just whether a
+            // snapshot file happens to exist).
+            var isShowingLiveProgress = false;
+
+            function renderLiveProgress(liveProgress) {
+                var headerEl = document.querySelector('#LastRunSummaryHeader');
+                var toggleButton = document.querySelector('#LastRunDetailsToggle');
+
+                // No per-run Details breakdown makes sense mid-run - the "Last run"
+                // one still on screen would be from whichever run happened before
+                // this one, which reads as stale/contradictory next to a live header.
+                toggleButton.style.display = 'none';
+                document.querySelector('#LastRunSummaryDetails').style.display = 'none';
+
+                var elapsedSeconds = (Date.now() - new Date(liveProgress.startedAtUtc).getTime()) / 1000;
+                var pct = liveProgress.totalItems > 0 ? Math.round((liveProgress.itemsProcessed / liveProgress.totalItems) * 100) : 0;
+
+                headerEl.innerHTML = '';
+                var liveDot = document.createElement('span');
+                liveDot.textContent = '● ';
+                liveDot.style.color = '#4caf50';
+                headerEl.appendChild(liveDot);
+                headerEl.appendChild(document.createTextNode(
+                    'Live - library ' + liveProgress.libraryIndex + '/' + liveProgress.libraryCount + ' (' + liveProgress.currentLibrary + ') - ' +
+                    liveProgress.itemsProcessed + '/' + liveProgress.totalItems + ' items (' + pct + '%) - ' +
+                    formatDuration(elapsedSeconds) + ' elapsed' + (liveProgress.dryRun ? ' - dry run' : '')));
+                headerEl.style.fontWeight = '';
+
+                statsData.lastRun = buildStatsRows(liveProgress);
+                if (activeStatsTab === 'lastRun') {
+                    renderStatsTable(statsData.lastRun);
+                }
+            }
+
+            function pollLiveProgress() {
+                fetch(ApiClient.serverAddress() + '/Enricherr/LiveProgress', {
+                    headers: { 'Authorization': authHeader() }
+                }).then(function (response) {
+                    if (response.status === 204) {
+                        // A run that was live and just finished (or was never live to
+                        // begin with, which is a harmless no-op here) - refresh with
+                        // the now-final numbers instead of leaving the last live
+                        // snapshot on screen looking frozen.
+                        if (isShowingLiveProgress) {
+                            isShowingLiveProgress = false;
+                            loadLastRunSummary();
+                        }
+
+                        return null;
+                    }
+                    if (!response.ok) {
+                        throw new Error('Failed to load live progress: ' + response.status);
+                    }
+                    return response.json();
+                }).then(function (liveProgress) {
+                    if (!liveProgress) {
+                        return;
+                    }
+
+                    isShowingLiveProgress = true;
+                    renderLiveProgress(liveProgress);
+                }).catch(function () {
+                    // Best-effort - a single failed poll just waits for the next tick
+                    // rather than disrupting whatever's currently on screen.
+                });
+            }
+
+            var liveProgressIntervalId = null;
+
+            function startLiveProgressPolling() {
+                if (liveProgressIntervalId !== null) {
+                    return;
+                }
+
+                liveProgressIntervalId = setInterval(pollLiveProgress, 3000);
+                pollLiveProgress();
+            }
+
+            function stopLiveProgressPolling() {
+                if (liveProgressIntervalId !== null) {
+                    clearInterval(liveProgressIntervalId);
+                    liveProgressIntervalId = null;
+                }
+            }
+
             document.querySelector('#LastRunDetailsToggle')
                 .addEventListener('click', function () {
                     var detailsEl = document.querySelector('#LastRunSummaryDetails');
@@ -764,11 +876,15 @@
                 });
 
             document.querySelector('#EnricherrConfigPage')
+                .addEventListener('pagehide', stopLiveProgressPolling);
+
+            document.querySelector('#EnricherrConfigPage')
                 .addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
                     setActiveStatsTab(activeStatsTab);
                     loadLastRunSummary();
                     loadLibraryTotals();
+                    startLiveProgressPolling();
                     ApiClient.getPluginConfiguration(EnricherrConfig.pluginUniqueId).then(function (config) {
                         document.querySelector('#RenameOriginal').checked = config.RenameOriginal;
                         document.querySelector('#RenameSeriesFolders').checked = config.RenameSeriesFolders;

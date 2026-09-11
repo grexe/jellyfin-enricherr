@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Jellyfin.Plugin.Enricherr.Services;
 using MediaBrowser.Common.Api;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -64,6 +65,7 @@ public class EnricherrController : ControllerBase
 
     private readonly ILogger<EnricherrController> _logger;
     private readonly ILibraryManager _libraryManager;
+    private readonly ITaskManager _taskManager;
     private readonly LibraryItemsFinder _libraryItemsFinder;
 
     /// <summary>
@@ -71,10 +73,12 @@ public class EnricherrController : ControllerBase
     /// </summary>
     /// <param name="logger">Instance of the <see cref="ILogger{EnricherrController}"/> interface.</param>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
-    public EnricherrController(ILogger<EnricherrController> logger, ILibraryManager libraryManager)
+    /// <param name="taskManager">Instance of the <see cref="ITaskManager"/> interface, used to confirm a run is actually still active before trusting its live-progress snapshot.</param>
+    public EnricherrController(ILogger<EnricherrController> logger, ILibraryManager libraryManager, ITaskManager taskManager)
     {
         _logger = logger;
         _libraryManager = libraryManager;
+        _taskManager = taskManager;
         _libraryItemsFinder = new LibraryItemsFinder(libraryManager, logger);
     }
 
@@ -140,6 +144,31 @@ public class EnricherrController : ControllerBase
         var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin instance is not available.");
         var summary = RunSummaryStore.Load(plugin.DataFolderPath);
         return summary is null ? NoContent() : Ok(summary);
+    }
+
+    /// <summary>
+    /// Returns a live snapshot of the "Fetch Missing Trailers" task while it's
+    /// actually running, for the settings page to poll instead of only seeing the
+    /// final result once the whole run completes. Gated on Jellyfin's own
+    /// <see cref="ITaskManager"/> reporting the task as genuinely
+    /// <see cref="TaskState.Running"/> - not just on whether a snapshot file exists -
+    /// so a leftover snapshot from a run that crashed or was killed abnormally
+    /// (never reaching the normal end-of-run cleanup) is never mistaken for a live one.
+    /// </summary>
+    /// <returns>The current snapshot, or 204 if no run is actively in progress.</returns>
+    [HttpGet("LiveProgress")]
+    public ActionResult<LiveProgress> GetLiveProgress()
+    {
+        var isRunning = _taskManager.ScheduledTasks
+            .Any(worker => worker.ScheduledTask.Key == "FetchMissingTrailers" && worker.State == TaskState.Running);
+        if (!isRunning)
+        {
+            return NoContent();
+        }
+
+        var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin instance is not available.");
+        var progress = LiveProgressStore.Load(plugin.DataFolderPath);
+        return progress is null ? NoContent() : Ok(progress);
     }
 
     /// <summary>

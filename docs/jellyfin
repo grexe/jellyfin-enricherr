@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.3.0.0",
+        "changelog": "New: live-updating statistics while a run is in progress, instead of only seeing results once the whole run finishes or digging through the log. The settings page's \"Last run\" tab now polls a new /Enricherr/LiveProgress endpoint every few seconds and shows which library is currently being processed plus the same coverage-bar numbers building up in real time, reusing the exact same table rendering the completed-run view already uses. A new LiveProgressStore writes a lightweight snapshot (throttled to roughly once every 2.5 seconds, not per item) during a run, cleared once it finishes; the API endpoint only trusts it when Jellyfin's own ITaskManager confirms the task is genuinely still running, so a snapshot left over from a crashed run is never mistaken for a live one.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.3.0.0.zip",
+        "checksum": "453d95362fe1de35f9dca99f7b3c29d4",
+        "timestamp": "2026-09-11T15:07:24Z"
+      },
+      {
         "version": "1.2.0.0",
         "changelog": "A run now processes one library at a time (its movies, then its series) instead of one flat movies-then-series pass across every configured library. The main motivation: the library-scan trigger now fires once a library's own phase finishes, scoped to just that library (Folder.ValidateChildren), instead of one QueueLibraryScan() covering the whole server at the very end of the entire run - a library's new trailers/theme songs/renames are picked up as soon as that library is done, not after every other configured library finishes too, and each scan is scoped and awaited before moving to the next library rather than one broad scan racing whatever else Jellyfin is doing concurrently (relevant after a live FOREIGN KEY constraint error was traced to Jellyfin's own trickplay generation racing a concurrent item change). This also matches how scan scope is already configured on this plugin's settings page - per library - rather than treating the whole configured scope as one unit. LibraryItemsFinder gained a new ResolveLibrariesInScope helper (the configured libraries, or every library on the server if none are configured, each resolved to its own root item) shared by this new per-library loop. The rate-limit retry mechanism now tracks a library index alongside the movie/series indices, with per-library scan-trigger snapshots taken exactly once (not re-taken on a retry resuming mid-library) so a retry can't undercount that library's own changes.",
         "targetAbi": "10.11.0.0",
