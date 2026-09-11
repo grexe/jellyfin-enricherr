@@ -199,10 +199,29 @@
                                     scene tags, internal archive/catalog numbers - that defeat Jellyfin's own matching even
                                     though the real title is findable once that noise is stripped), search using this
                                     plugin's own cleaned-up title and apply a match, but only when it's confident: a strict
-                                    title match, the release year, and the candidate's own claimed runtime (checked against
-                                    this file, via ffprobe) all have to agree. Never touches a movie Jellyfin already
-                                    matched, right or wrong. Off by default - this is the only setting that changes a
-                                    movie's actual metadata rather than just adding a trailer/theme song next to it.
+                                    title match (checked against the candidate's primary title, and its alternate/
+                                    localized titles too if a TMDb API key is set below) plus its own claimed runtime
+                                    (checked against this file, via ffprobe) - or, only when runtime can't be
+                                    compared, the release year as a looser fallback - have to agree. Never touches a
+                                    movie Jellyfin already matched, right or wrong. Off by default - this is the only
+                                    setting that changes a movie's actual metadata rather than just adding a
+                                    trailer/theme song next to it.
+                                </div>
+                            </div>
+
+                            <div class="inputContainer" id="TmdbApiKeyContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDb API key (optional)</label>
+                                <input id="TmdbApiKey" name="TmdbApiKey" type="password" is="emby-input" autocomplete="off" />
+                                <div class="fieldDescription settingHelp">
+                                    Used only to also check a candidate's alternate/localized titles when its primary
+                                    title alone doesn't match closely enough - Jellyfin's own bundled TMDb integration
+                                    never fetches these, and doesn't expose a way to reuse its own key for it. Get a
+                                    free key at
+                                    <a is="emby-linkbutton" class="button-link" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a>
+                                    (the "API Key", not the "Read Access Token"). Leave empty to skip alternate-title
+                                    lookups and judge every candidate on its primary title alone. Only used here -
+                                    nowhere else in this plugin sends anything to TMDb with it. Disabled unless
+                                    "Search for missing movie metadata" above is on.
                                 </div>
                             </div>
                         </div>
@@ -606,6 +625,12 @@
                 document.querySelector('#RateLimitRetryDelayContainer').style.opacity = enabled ? '' : '0.45';
             }
 
+            function updateTmdbApiKeyEnabled() {
+                var enabled = document.querySelector('#SearchForMissingMetadata').checked;
+                document.querySelector('#TmdbApiKey').disabled = !enabled;
+                document.querySelector('#TmdbApiKeyContainer').style.opacity = enabled ? '' : '0.45';
+            }
+
             function setMinTrailerResolutionSelect(value) {
                 // Older versions let this be any number via a free-text input; snap a
                 // saved value that isn't one of the fixed dropdown steps to the
@@ -973,6 +998,9 @@
             document.querySelector('#RetryOnRateLimit')
                 .addEventListener('change', updateRateLimitRetryDelayEnabled);
 
+            document.querySelector('#SearchForMissingMetadata')
+                .addEventListener('change', updateTmdbApiKeyEnabled);
+
             document.querySelector('#ShowHelpToggle')
                 .addEventListener('change', updateHelpTextVisibility);
 
@@ -1009,6 +1037,8 @@
                         document.querySelector('#MigrateToFolders').value = config.MigrateToFolders;
                         document.querySelector('#FixPermissions').checked = config.FixPermissions;
                         document.querySelector('#SearchForMissingMetadata').checked = config.SearchForMissingMetadata;
+                        document.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
+                        updateTmdbApiKeyEnabled();
                         document.querySelector('#TriggerLibraryScan').checked = config.TriggerLibraryScan;
                         document.querySelector('#DryRun').checked = config.DryRun;
                         document.querySelector('#VerboseLogging').checked = config.VerboseLogging;
@@ -1091,6 +1121,7 @@
                         config.MigrateToFolders = document.querySelector('#MigrateToFolders').value;
                         config.FixPermissions = document.querySelector('#FixPermissions').checked;
                         config.SearchForMissingMetadata = document.querySelector('#SearchForMissingMetadata').checked;
+                        config.TmdbApiKey = document.querySelector('#TmdbApiKey').value.trim();
                         config.TriggerLibraryScan = document.querySelector('#TriggerLibraryScan').checked;
                         config.DryRun = document.querySelector('#DryRun').checked;
                         config.VerboseLogging = document.querySelector('#VerboseLogging').checked;

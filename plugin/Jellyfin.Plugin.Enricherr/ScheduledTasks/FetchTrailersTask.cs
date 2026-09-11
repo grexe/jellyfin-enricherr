@@ -70,7 +70,7 @@ public class FetchTrailersTask : IScheduledTask
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _libraryItemsFinder = new LibraryItemsFinder(libraryManager, logger);
-        _missingMetadataMatcher = new MissingMetadataMatcher(providerManager, libraryManager, directoryService, logger);
+        _missingMetadataMatcher = new MissingMetadataMatcher(providerManager, libraryManager, directoryService, httpClientFactory, logger);
     }
 
     /// <inheritdoc />
@@ -580,7 +580,7 @@ public class FetchTrailersTask : IScheduledTask
         // matched metadata rather than the pre-match fallback.
         if (config.SearchForMissingMetadata && !config.DryRun)
         {
-            var matched = await _missingMetadataMatcher.TryMatchMovieAsync(movie, preferredTitle, year, localPath, ffprobePath, cancellationToken).ConfigureAwait(false);
+            var matched = await _missingMetadataMatcher.TryMatchMovieAsync(movie, preferredTitle, year, localPath, ffprobePath, config.TmdbApiKey, cancellationToken).ConfigureAwait(false);
             if (matched)
             {
                 (preferredTitle, titleVariants) = ItemMetadata.ResolveTitles(movie, localPath);

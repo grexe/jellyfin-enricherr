@@ -59,6 +59,7 @@ public class PluginConfiguration : BasePluginConfiguration
         FetchThemeSongs = false;
         FixPermissions = false;
         SearchForMissingMetadata = false;
+        TmdbApiKey = string.Empty;
     }
 
     /// <summary>
@@ -271,4 +272,19 @@ public class PluginConfiguration : BasePluginConfiguration
     /// plugin would rather fail closed on than get wrong. Off by default.
     /// </summary>
     public bool SearchForMissingMetadata { get; set; }
+
+    /// <summary>
+    /// Gets or sets a TMDb API key (v3 auth, free at
+    /// https://www.themoviedb.org/settings/api), used only to fetch a search
+    /// candidate's alternate/localized titles
+    /// (<see cref="Services.TmdbAlternativeTitlesClient"/>) while matching missing
+    /// metadata (see <see cref="Services.MissingMetadataMatcher"/>). Jellyfin's own
+    /// bundled TMDb integration never requests this data and doesn't expose a way to
+    /// reuse its own key for it, so this plugin needs its own - deliberately scoped to
+    /// this one lookup, not used anywhere else. Only consulted as a rescue path when a
+    /// candidate's primary title doesn't already clear the similarity bar; leave empty
+    /// to skip alternate-title lookups entirely and judge every candidate on its
+    /// primary title alone, same as before this setting existed.
+    /// </summary>
+    public string TmdbApiKey { get; set; }
 }

@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
+using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
 using Microsoft.Extensions.Logging;
 
@@ -22,15 +25,27 @@ namespace Jellyfin.Plugin.Enricherr.Services;
 /// internal archive catalog number, not part of the title - had no Jellyfin match at
 /// all, despite "Die Welt an und für sich" (2020) being findable on TMDb directly.
 ///
-/// Deliberately conservative in three ways, to keep an unattended scheduled task from
-/// ever silently applying a wrong match: (1) only ever touches an item with an
-/// EMPTY ProviderIds - never second-guesses a match Jellyfin already made, right or
-/// wrong; (2) requires a strict title similarity AND a year match against the search
-/// candidate; (3) requires the candidate's own claimed runtime (fetched from its
-/// provider directly, never by speculatively applying it to the real Jellyfin item
-/// first) to agree with this plugin's own ffprobe of the local file within a tight
-/// tolerance. A candidate that fails any of these is left alone, logged, and Jellyfin's
-/// item is never touched - failing closed is the point.
+/// Candidate selection is deliberately prioritized title &gt; duration &gt; year, not the
+/// reverse: a search result's own claimed release year turned out to be an
+/// unreliable signal in practice (confirmed live: "75 cl Schicksal" (1994), filed
+/// under a 2020 archival/broadcast date that isn't the film's actual release year at
+/// all), while the local file's own runtime (via ffprobe) is a strong, independent
+/// corroboration a wrong title match is very unlikely to also happen to satisfy. Title
+/// matching also checks a candidate's alternate/localized titles
+/// (<see cref="TmdbAlternativeTitlesClient"/>), not just its primary one - the same
+/// "75 cl Schicksal" case is a German title for a film TMDb's primary/English title
+/// ("A Bottle of Wishes") scored far too low against on its own.
+///
+/// Deliberately conservative regardless: (1) only ever touches an item with an EMPTY
+/// ProviderIds - never second-guesses a match Jellyfin already made, right or wrong;
+/// (2) always requires a strict title similarity match (primary or alternate title)
+/// against the search candidate; (3) requires either the candidate's own claimed
+/// runtime (fetched from its provider directly, never by speculatively applying it to
+/// the real Jellyfin item first) to agree with this plugin's own ffprobe of the local
+/// file within a tight tolerance, or - only when a runtime comparison isn't possible
+/// at all - its year to agree within a looser tolerance. A candidate that fails all of
+/// this is left alone, logged, and Jellyfin's item is never touched - failing closed
+/// is the point.
 /// </summary>
 public class MissingMetadataMatcher
 {
@@ -55,16 +70,23 @@ public class MissingMetadataMatcher
     private readonly IProviderManager _providerManager;
     private readonly ILibraryManager _libraryManager;
     private readonly IDirectoryService _directoryService;
+    private readonly TmdbAlternativeTitlesClient _tmdbAlternativeTitlesClient;
     private readonly ILogger _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MissingMetadataMatcher"/> class.
     /// </summary>
-    public MissingMetadataMatcher(IProviderManager providerManager, ILibraryManager libraryManager, IDirectoryService directoryService, ILogger logger)
+    public MissingMetadataMatcher(
+        IProviderManager providerManager,
+        ILibraryManager libraryManager,
+        IDirectoryService directoryService,
+        IHttpClientFactory httpClientFactory,
+        ILogger logger)
     {
         _providerManager = providerManager;
         _libraryManager = libraryManager;
         _directoryService = directoryService;
+        _tmdbAlternativeTitlesClient = new TmdbAlternativeTitlesClient(httpClientFactory, logger);
         _logger = logger;
     }
 
@@ -75,6 +97,13 @@ public class MissingMetadataMatcher
     /// Jellyfin's) as the search query. A no-op - returning false - if
     /// <paramref name="movie"/> already has any provider id at all.
     /// </summary>
+    /// <param name="movie">The Jellyfin movie item with no existing metadata match.</param>
+    /// <param name="candidateTitle">This plugin's own resolved title to search with.</param>
+    /// <param name="candidateYear">This plugin's own resolved year, if any.</param>
+    /// <param name="localPath">Path to the local video file, for the ffprobe runtime cross-check.</param>
+    /// <param name="ffprobePath">Path to Jellyfin's own ffprobe binary, or null if unavailable.</param>
+    /// <param name="tmdbApiKey">A user-supplied TMDb API key for alternate-title lookups, or empty to skip them.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Whether a match was found and applied (Jellyfin's own metadata refresh already ran).</returns>
     public async Task<bool> TryMatchMovieAsync(
         Movie movie,
@@ -82,6 +111,7 @@ public class MissingMetadataMatcher
         string? candidateYear,
         string localPath,
         string? ffprobePath,
+        string? tmdbApiKey,
         CancellationToken cancellationToken)
     {
         if (movie.ProviderIds.Count > 0 || string.IsNullOrWhiteSpace(candidateTitle))
@@ -99,7 +129,7 @@ public class MissingMetadataMatcher
         // looks like it has a trailing archive/catalog-number suffix (the pattern
         // this "Kurzschluss"-style archive naming uses - a hyphenated run of two
         // digit groups then a single letter), retry once with that suffix stripped.
-        var searchTitles = new System.Collections.Generic.List<string> { candidateTitle };
+        var searchTitles = new List<string> { candidateTitle };
         var strippedTitle = ArchiveCatalogSuffixRegex.Replace(candidateTitle, string.Empty).TrimEnd();
         if (strippedTitle.Length > 0 && !string.Equals(strippedTitle, candidateTitle, StringComparison.Ordinal))
         {
@@ -110,9 +140,9 @@ public class MissingMetadataMatcher
         // "75 cl Schicksal" case above - without it: TMDb's own search appears to use
         // the year as a hard filter, excluding an otherwise-perfect title match when
         // its own recorded release year doesn't exactly line up with ours. Safe to
-        // drop here since the scoring step below already re-checks year (with its own
-        // +/-1 tolerance) against whatever comes back either way.
-        var searchAttempts = new System.Collections.Generic.List<(string Title, bool IncludeYear)>();
+        // drop here since candidate selection below no longer hard-filters on year
+        // either - it's checked only as a fallback tie-breaker when runtime can't be.
+        var searchAttempts = new List<(string Title, bool IncludeYear)>();
         foreach (var title in searchTitles)
         {
             searchAttempts.Add((title, true));
@@ -129,8 +159,8 @@ public class MissingMetadataMatcher
         // would otherwise stop the loop before the broader/year-less attempt - the
         // one actually likely to surface the real match - ever runs. Deduplicated by
         // name+year, since the same real candidate often reappears across attempts.
-        var results = new System.Collections.Generic.List<RemoteSearchResult>();
-        var seenCandidates = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+        var results = new List<RemoteSearchResult>();
+        var seenCandidates = new HashSet<string>(StringComparer.Ordinal);
         foreach (var attempt in searchAttempts)
         {
             var query = new RemoteSearchQuery<MovieInfo>
@@ -146,7 +176,7 @@ public class MissingMetadataMatcher
 
             var attemptYearLabel = attempt.IncludeYear && year is not null ? year.Value.ToString(CultureInfo.InvariantCulture) : "no year";
 
-            System.Collections.Generic.List<RemoteSearchResult> attemptResults;
+            List<RemoteSearchResult> attemptResults;
             try
             {
                 attemptResults = (await _providerManager.GetRemoteSearchResults<Movie, MovieInfo>(query, cancellationToken).ConfigureAwait(false)).ToList();
@@ -175,19 +205,28 @@ public class MissingMetadataMatcher
             }
         }
 
-        var scored = results
-            .Select(r => (Result: r, Similarity: Levenshtein.TitleSimilarity(candidateTitle, r.Name)))
+        var scoredPrimary = results
+            .Select(r => (Result: r, Similarity: Levenshtein.TitleSimilarity(candidateTitle, r.Name), MatchedTitle: (string?)null))
             .OrderByDescending(r => r.Similarity)
             .ToList();
 
-        var best = scored
+        var candidatesForSelection = scoredPrimary
             .Where(r => r.Similarity >= TitleSimilarityThreshold)
-            .Where(r => year is null || r.Result.ProductionYear is null || Math.Abs(r.Result.ProductionYear.Value - year.Value) <= YearToleranceYears)
-            .FirstOrDefault();
+            .ToList();
 
-        if (best.Result is null)
+        // Rescue pass: a candidate's PRIMARY title is often just one localization of
+        // several TMDb knows about - only worth the extra API calls once the primary
+        // title alone has already failed to find anything, and only for candidates
+        // TMDb itself is the source of (an id from a different provider can't be
+        // looked up this way).
+        if (candidatesForSelection.Count == 0 && !string.IsNullOrWhiteSpace(tmdbApiKey))
         {
-            var closest = scored.FirstOrDefault();
+            candidatesForSelection = await RescueViaAlternateTitlesAsync(movie, candidateTitle, results, tmdbApiKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (candidatesForSelection.Count == 0)
+        {
+            var closest = scoredPrimary.FirstOrDefault();
             if (closest.Result is null)
             {
                 _logger.LogInformation(
@@ -211,40 +250,76 @@ public class MissingMetadataMatcher
             return false;
         }
 
+        double? localDurationSeconds = null;
         if (!string.IsNullOrEmpty(ffprobePath))
         {
-            var localDurationSeconds = await VideoProbe.GetDurationSecondsAsync(ffprobePath, localPath, _logger, cancellationToken).ConfigureAwait(false);
-            if (localDurationSeconds is not null)
+            localDurationSeconds = await VideoProbe.GetDurationSecondsAsync(ffprobePath, localPath, _logger, cancellationToken).ConfigureAwait(false);
+        }
+
+        (RemoteSearchResult Result, double Similarity, string? MatchedTitle)? best = null;
+        string? acceptedVia = null;
+        foreach (var candidate in candidatesForSelection)
+        {
+            double? candidateRuntimeMinutes = localDurationSeconds is not null
+                ? await GetCandidateRuntimeMinutesAsync(movie, candidate.Result, cancellationToken).ConfigureAwait(false)
+                : null;
+
+            if (candidateRuntimeMinutes is not null)
             {
-                var candidateRuntimeMinutes = await GetCandidateRuntimeMinutesAsync(movie, best.Result, cancellationToken).ConfigureAwait(false);
-                if (candidateRuntimeMinutes is not null)
+                var localMinutes = localDurationSeconds!.Value / 60.0;
+                if (Math.Abs(localMinutes - candidateRuntimeMinutes.Value) <= RuntimeToleranceMinutes)
                 {
-                    var localMinutes = localDurationSeconds.Value / 60.0;
-                    if (Math.Abs(localMinutes - candidateRuntimeMinutes.Value) > RuntimeToleranceMinutes)
-                    {
-                        _logger.LogInformation(
-                            "  > Found a title/year match ({MatchName}, {Similarity:P0} similar) for {Title}, but its runtime ({CandidateMinutes:F1} min) doesn't match the local file ({LocalMinutes:F1} min) - not applying.",
-                            best.Result.Name,
-                            best.Similarity,
-                            candidateTitle,
-                            candidateRuntimeMinutes.Value,
-                            localMinutes);
-                        return false;
-                    }
+                    best = candidate;
+                    acceptedVia = "duration";
+                    break;
                 }
-                else
-                {
-                    _logger.LogInformation(
-                        "  > Could not determine {Provider}'s claimed runtime for {MatchName} - applying the match on title/year confidence alone.",
-                        best.Result.SearchProviderName,
-                        best.Result.Name);
-                }
+
+                _logger.LogInformation(
+                    "  > {MatchName} matched {Title}'s title ({Similarity:P0} similar), but its runtime ({CandidateMinutes:F1} min) doesn't match the local file ({LocalMinutes:F1} min) - trying the next candidate, if any.",
+                    candidate.Result.Name,
+                    candidateTitle,
+                    candidate.Similarity,
+                    candidateRuntimeMinutes.Value,
+                    localMinutes);
+                continue;
             }
+
+            // Runtime couldn't be compared (no local ffprobe result, or the provider
+            // doesn't report one for this candidate) - fall back to year as a softer
+            // tie-breaker rather than rejecting outright on title alone.
+            var yearOk = year is null || candidate.Result.ProductionYear is null || Math.Abs(candidate.Result.ProductionYear.Value - year.Value) <= YearToleranceYears;
+            if (yearOk)
+            {
+                best = candidate;
+                acceptedVia = localDurationSeconds is null ? "title alone (no local runtime available)" : "title + year (candidate reported no runtime)";
+                break;
+            }
+
+            _logger.LogInformation(
+                "  > {MatchName} matched {Title}'s title ({Similarity:P0} similar), but its year ({CandidateYear}) doesn't match ({Year}) and no runtime could be compared - trying the next candidate, if any.",
+                candidate.Result.Name,
+                candidateTitle,
+                candidate.Similarity,
+                candidate.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year",
+                candidateYear ?? "unknown year");
+        }
+
+        if (best is null)
+        {
+            var closest = candidatesForSelection[0];
+            _logger.LogInformation(
+                "  > No confident metadata match for {Title} ({Year}) - {Count} title match(es) found, none corroborated by duration or year - closest was {ClosestName} ({Similarity:P0} title similarity) - leaving unmatched.",
+                candidateTitle,
+                candidateYear ?? "unknown year",
+                candidatesForSelection.Count,
+                closest.Result.Name,
+                closest.Similarity);
+            return false;
         }
 
         var refreshOptions = new MetadataRefreshOptions(_directoryService)
         {
-            SearchResult = best.Result,
+            SearchResult = best.Value.Result,
             MetadataRefreshMode = MetadataRefreshMode.FullRefresh,
             ImageRefreshMode = MetadataRefreshMode.FullRefresh,
             ReplaceAllMetadata = true,
@@ -256,12 +331,14 @@ public class MissingMetadataMatcher
         {
             await _providerManager.RefreshSingleItem(movie, refreshOptions, cancellationToken).ConfigureAwait(false);
             _logger.LogInformation(
-                "  > Applied metadata match: {Title} -> {MatchName} ({Year}, via {Provider}, {Similarity:P0} title similarity).",
+                "  > Applied metadata match: {Title} -> {MatchName} ({Year}, via {Provider}, {Similarity:P0} title similarity{AltTitle}) - accepted on {AcceptedVia}.",
                 candidateTitle,
-                best.Result.Name,
-                best.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year",
-                best.Result.SearchProviderName,
-                best.Similarity);
+                best.Value.Result.Name,
+                best.Value.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year",
+                best.Value.Result.SearchProviderName,
+                best.Value.Similarity,
+                best.Value.MatchedTitle is null ? string.Empty : $", via alternate title {best.Value.MatchedTitle}",
+                acceptedVia);
             return true;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -269,6 +346,65 @@ public class MissingMetadataMatcher
             _logger.LogWarning("  > Failed to apply metadata match for {Title}: {Error}", candidateTitle, ex.Message);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Re-scores every pooled candidate that has a TMDb id against its own alternate
+    /// titles, preferring one tagged with the item's own resolved metadata country
+    /// (the same <see cref="MediaBrowser.Controller.Entities.BaseItem.GetPreferredMetadataCountryCode"/>
+    /// resolution already used for trailer-language preference elsewhere in this
+    /// plugin - alternate titles are just another facette of the same "prefer this
+    /// item's own language/region" idea) and falling back to whichever alternate
+    /// title scores best otherwise. Only ever called once the candidate's primary
+    /// title has already failed to find anything, to keep the extra API calls to a
+    /// minimum.
+    /// </summary>
+    private async Task<List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>> RescueViaAlternateTitlesAsync(
+        Movie movie,
+        string candidateTitle,
+        List<RemoteSearchResult> results,
+        string tmdbApiKey,
+        CancellationToken cancellationToken)
+    {
+        var preferredCountry = movie.GetPreferredMetadataCountryCode();
+        var rescored = new List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>();
+
+        foreach (var candidate in results)
+        {
+            if (!candidate.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbId) || string.IsNullOrEmpty(tmdbId))
+            {
+                continue;
+            }
+
+            var altTitles = await _tmdbAlternativeTitlesClient.GetAlternativeTitlesAsync(tmdbApiKey, tmdbId, cancellationToken).ConfigureAwait(false);
+            if (altTitles.Count == 0)
+            {
+                continue;
+            }
+
+            var byPreferredCountry = !string.IsNullOrEmpty(preferredCountry)
+                ? altTitles.Where(t => string.Equals(t.CountryCode, preferredCountry, StringComparison.OrdinalIgnoreCase)).ToList()
+                : new List<(string CountryCode, string Title)>();
+            var titlesToScore = byPreferredCountry.Count > 0 ? byPreferredCountry : altTitles;
+
+            var bestAlt = titlesToScore
+                .Select(t => (Title: t.Title, Similarity: Levenshtein.TitleSimilarity(candidateTitle, t.Title)))
+                .OrderByDescending(t => t.Similarity)
+                .First();
+
+            if (bestAlt.Similarity >= TitleSimilarityThreshold)
+            {
+                _logger.LogInformation(
+                    "  > {Title} matched {MatchName} via its alternate title \"{AltTitle}\" ({Similarity:P0} similar) - its primary title did not.",
+                    candidateTitle,
+                    candidate.Name,
+                    bestAlt.Title,
+                    bestAlt.Similarity);
+                rescored.Add((candidate, bestAlt.Similarity, bestAlt.Title));
+            }
+        }
+
+        return rescored.OrderByDescending(r => r.Similarity).ToList();
     }
 
     /// <summary>

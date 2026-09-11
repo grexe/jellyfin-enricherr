@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.6.0.0",
+        "changelog": "Missing-metadata search (1.4.0.0) now prioritizes title over year, per feedback that a candidate's release year turned out to be an unreliable signal in practice - confirmed live: \"75 cl Schicksal\" (1994) was filed under a 2020 archival/broadcast date that isn't its actual release year at all, so both the low title-similarity score against TMDb's primary (English) title and the year-mismatch rejection were technically correct given the information available, but still missed a real match. Candidates are now judged title > duration > year instead of year (hard filter) > title > duration: a strict title match (primary title, or - new - an alternate/localized title, if a TMDb API key is configured) is still required, but year is now only consulted as a fallback tie-breaker when the candidate's own claimed runtime (via ffprobe) can't be compared at all, rather than rejecting a title+duration match outright over a year that doesn't line up. New optional \"TMDb API key\" setting (Organisation group, empty/disabled by default) - a separate key of your own, since Jellyfin's bundled TMDb integration never fetches alternate titles and doesn't expose a way to reuse its own key for it; only ever used for this one lookup, and only as a rescue path once a candidate's primary title has already failed to match closely enough.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.6.0.0.zip",
+        "checksum": "1fad08cb586cd88582c65e541ad7af1c",
+        "timestamp": "2026-09-11T21:51:29Z"
+      },
+      {
         "version": "1.5.1.1",
         "changelog": "Two small fixes. (1) The live-progress \"Current run\" spinner is now a standard circular rotating spinner (a bordered, rotating circle), right-aligned to the library-name cell's own border, instead of the previous subtle cycling braille-dot character. (2) A run scoped to specific, individually-configured libraries (not \"scan every library\") now processes them in the same alphabetical order the settings page always displays them in - previously it followed whatever order they happened to be stored in, which could differ from display order, making the live-progress table's top-to-bottom flow not actually match which library was being worked on next.",
         "targetAbi": "10.11.0.0",
