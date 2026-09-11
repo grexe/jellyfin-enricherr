@@ -9,12 +9,12 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo.png",
     "versions": [
       {
-        "version": "1.0.0.2",
-        "changelog": "Statistics table: the Trailers and Theme songs columns now show a tinted coverage bar behind the count - green for trailers, blue for theme songs - filled to the percentage of that library's items already covered (e.g. \"342 (49%)\"), via a single CSS gradient on the cell background. A phase that never started this run (\"n/a\") is left as plain text, no bar.",
+        "version": "1.0.1.0",
+        "changelog": "New feature: the Statistics table's Trailers and Theme songs columns now show a tinted coverage bar behind the count - green for trailers, blue for theme songs - filled to the percentage of that library's items already covered (e.g. \"342 (49%)\"), via a single CSS gradient on the cell background. A phase that never started this run (\"n/a\") is left as plain text, no bar.",
         "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.0.0.2.zip",
-        "checksum": "391867f6d6fcccc58c5c92921c3b1312",
-        "timestamp": "2026-09-11T09:58:59Z"
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.0.1.0.zip",
+        "checksum": "931d77ba3763ebee14a8981466e19be4",
+        "timestamp": "2026-09-11T09:59:59Z"
       },
       {
         "version": "1.0.0.1",
