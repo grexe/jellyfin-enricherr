@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.1.0.3",
+        "changelog": "Two small fixes found from a live run right after 1.1.0.2. (1) The \"not in its own dedicated folder\" skip warning (0.13.0.2) was four sentences of boilerplate explaining the same thing every time - shortened to one line (\"Skipping {Title}: not in its own folder, and folder migration is off\"). (2) The new series-folder permission healing (1.1.0.2) picked the *first* episode file found as its \"known good\" reference, with no check that it was actually readable - confirmed live: one episode's own permissions were restrictive enough that even `stat` on it failed with \"Permission denied\", so the healing silently no-opped instead of using a different, readable episode from the same series. SeriesFileOperations.FindReferenceEpisode now skips an unreadable candidate and tries the next one instead of giving up after the first.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.1.0.3.zip",
+        "checksum": "ff8a5eb887830df0f506896bd6f08903",
+        "timestamp": "2026-09-11T13:27:34Z"
+      },
+      {
         "version": "1.1.0.2",
         "changelog": "Two related fixes to a permission problem confirmed live. (1) A local destination-write failure (e.g. a permission-denied copy) was indistinguishable from a genuine YouTube-side extraction failure, so the download retry loop wastefully retried a permission error with a different YouTube client tier - which can never fix a local filesystem problem - burning a full extra download only to fail at the identical copy step again seconds later. YtDlpClient now returns a DownloadOutcome (Success/NoCandidateFound/DestinationWriteFailed) instead of a plain bool from each download attempt, for both trailers and theme songs, and only a genuine NoCandidateFound result proceeds to the next client tier - a DestinationWriteFailed now stops immediately. (2) Root-caused why the permission problem kept recurring despite being fixed by hand before a scan: the existing UnixPermissions.MatchTo healing (permission bits/group matched to a known-good reference file, see 0.8.28.0/0.9.0.0) was only ever applied to a movie's theme-song folder on every run, and to a freshly created folder at the moment MigrateToOwnFolder created it - an already-existing movie trailer folder, and any series folder (trailer or theme song) at all, never got healed before a write was attempted. Both now get the same every-run healing as the movie theme-song folder did, using an existing episode file as the reference for a series (which has no single item.Path of its own).",
         "targetAbi": "10.11.0.0",

@@ -136,19 +136,53 @@ public static class SeriesFileOperations
     /// reference (see <see cref="UnixPermissions.MatchTo"/>) - unlike a movie, a
     /// series has no single item.Path pointing at "the" media file, so this stands in
     /// for one. Null if the folder has no video file yet (e.g. a series added but not
-    /// synced) or can't be read.
+    /// synced) or none of them can actually be read.
     /// </summary>
     public static string? FindReferenceEpisode(string seriesPath, ILogger logger)
     {
         try
         {
-            return Directory.EnumerateFiles(seriesPath, "*", SearchOption.AllDirectories)
-                .FirstOrDefault(f => VideoExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase));
+            foreach (var file in Directory.EnumerateFiles(seriesPath, "*", SearchOption.AllDirectories))
+            {
+                if (!VideoExtensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                // Confirmed live: one episode's own permissions can be so restrictive
+                // this plugin's own process can't even stat it, let alone use it as a
+                // "known good" reference for the whole folder - skip it and try
+                // another one rather than giving up on the first file found.
+                if (CanRead(file))
+                {
+                    return file;
+                }
+            }
+
+            return null;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning("  > Could not scan {Dir} for a reference episode file: {Error}", seriesPath, e.Message);
             return null;
+        }
+    }
+
+    private static bool CanRead(string path)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        try
+        {
+            File.GetUnixFileMode(path);
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+        {
+            return false;
         }
     }
 }

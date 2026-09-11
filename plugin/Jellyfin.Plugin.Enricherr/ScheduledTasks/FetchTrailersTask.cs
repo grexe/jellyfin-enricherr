@@ -322,10 +322,7 @@ public class FetchTrailersTask : IScheduledTask
         if (config.MigrateToFolders == MigrationMode.Disabled && !MovieFileOperations.HasOwnFolder(localPath))
         {
             _logger.LogWarning(
-                "Skipping {Title}: not in its own dedicated folder, and \"Migrate movies into their own folder\" " +
-                "is off - a trailer saved here would sit in a folder shared with other movies, which Jellyfin " +
-                "can't recognize as belonging to this one. Enable folder migration, or move this movie into its " +
-                "own folder manually. ({Path})",
+                "Skipping {Title}: not in its own folder, and folder migration is off ({Path})",
                 rawTitle,
                 PathDisplay.Relative(localPath, libraryRoot));
             stats.Skipped++;
