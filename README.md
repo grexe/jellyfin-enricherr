@@ -21,11 +21,11 @@ remote trailers, like the webOS app - plays it locally.
 
 ## Why a plugin, not a script?
 
-This project started as a standalone Python script you'd run by hand or cron against a Jellyfin server. That script
-still lives in this repository (`src/`, `pyproject.toml`, `tests/`) for reference, but it's superseded: the plugin
-does everything the script did and more, runs inside Jellyfin itself on Jellyfin's own scheduler, manages its own
-`yt-dlp`/`deno` (no manual `ffmpeg`/`yt-dlp` install or environment setup), and is configured through Jellyfin's
-dashboard instead of a `.env` file.
+This project started as a standalone Python script (`jellyfin-trailer-fetcher`) you'd run by hand or cron against a
+Jellyfin server, authenticating over its HTTP API with path mappings to translate NAS paths to a local mount. Once
+the plugin fully superseded it - running inside Jellyfin itself on Jellyfin's own scheduler, managing its own
+`yt-dlp`/`deno`, configured through Jellyfin's dashboard instead of a `.env` file - the script's source was removed
+from this repository; this section stays as a record of where the plugin came from.
 
 ## Features
 
@@ -102,9 +102,9 @@ Builds the plugin and produces a versioned zip under `plugin/dist/`. See
 
 ## The legacy standalone script
 
-The original Python script this plugin grew out of is still in this repository - see the root
-[`src/`](src/) and [`pyproject.toml`](pyproject.toml). It's no longer actively developed; new work goes into the
-plugin.
+This plugin grew out of an earlier standalone Python script (`jellyfin-trailer-fetcher`) that ran against a
+Jellyfin server over its HTTP API. Once the plugin fully superseded it, the script's source was removed from this
+repository - see "Why a plugin, not a script?" above for why.
 
 ## Credits
 

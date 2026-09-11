@@ -11,9 +11,9 @@ local trailer file when the movie has its own dedicated folder
 ([jellyfin/jellyfin#10077](https://github.com/jellyfin/jellyfin/issues/10077)); a
 series always already has one, so that step doesn't apply there.
 
-This is a from-scratch C# port of the standalone
-[`jellyfin-trailer-fetcher`](../src) Python script (still in this same repository, at
-the root, not yet renamed to match - see its own `pyproject.toml`), not a wrapper
+This is a from-scratch C# port of the standalone `jellyfin-trailer-fetcher` Python
+script (its source has since been removed from this repository - fully superseded,
+see the root README's "Why a plugin, not a script?" for the history), not a wrapper
 around it - running server-side changes the shape of the problem enough that a
 straight rewrite made more sense than shelling out.
 
