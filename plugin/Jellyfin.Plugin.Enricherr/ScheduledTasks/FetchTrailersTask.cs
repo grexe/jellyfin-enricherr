@@ -13,6 +13,7 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.MediaEncoding;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.Tasks;
@@ -42,6 +43,7 @@ public class FetchTrailersTask : IScheduledTask
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<FetchTrailersTask> _logger;
     private readonly LibraryItemsFinder _libraryItemsFinder;
+    private readonly MissingMetadataMatcher _missingMetadataMatcher;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FetchTrailersTask"/> class.
@@ -50,8 +52,17 @@ public class FetchTrailersTask : IScheduledTask
     /// <param name="localization">Instance of the <see cref="ILocalizationManager"/> interface.</param>
     /// <param name="mediaEncoder">Instance of the <see cref="IMediaEncoder"/> interface, used to point yt-dlp at Jellyfin's own ffmpeg.</param>
     /// <param name="httpClientFactory">Instance of the <see cref="IHttpClientFactory"/> interface, used to download managed yt-dlp/deno binaries.</param>
+    /// <param name="providerManager">Instance of the <see cref="IProviderManager"/> interface, used to search for/apply metadata for otherwise-unmatched items.</param>
+    /// <param name="directoryService">Instance of the <see cref="IDirectoryService"/> interface, required by Jellyfin's own metadata refresh pipeline.</param>
     /// <param name="logger">Instance of the <see cref="ILogger{FetchTrailersTask}"/> interface.</param>
-    public FetchTrailersTask(ILibraryManager libraryManager, ILocalizationManager localization, IMediaEncoder mediaEncoder, IHttpClientFactory httpClientFactory, ILogger<FetchTrailersTask> logger)
+    public FetchTrailersTask(
+        ILibraryManager libraryManager,
+        ILocalizationManager localization,
+        IMediaEncoder mediaEncoder,
+        IHttpClientFactory httpClientFactory,
+        IProviderManager providerManager,
+        IDirectoryService directoryService,
+        ILogger<FetchTrailersTask> logger)
     {
         _libraryManager = libraryManager;
         _localization = localization;
@@ -59,6 +70,7 @@ public class FetchTrailersTask : IScheduledTask
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _libraryItemsFinder = new LibraryItemsFinder(libraryManager, logger);
+        _missingMetadataMatcher = new MissingMetadataMatcher(providerManager, libraryManager, directoryService, logger);
     }
 
     /// <inheritdoc />
@@ -501,6 +513,23 @@ public class FetchTrailersTask : IScheduledTask
         _logger.LogInformation("Processing movie file: {Name} ...", Path.GetFileName(localPath));
 
         var year = ItemMetadata.ResolveYear(movie, localPath);
+
+        // Only when Jellyfin has literally no match for this item at all (never to
+        // second-guess one it already made) - see MissingMetadataMatcher for the
+        // title/year/runtime confidence checks a candidate has to clear first. A
+        // successful match mutates `movie` in place (Jellyfin's own refresh pipeline),
+        // so the title/year this run uses from here on are re-resolved from the newly
+        // matched metadata rather than the pre-match fallback.
+        if (config.SearchForMissingMetadata && !config.DryRun)
+        {
+            var matched = await _missingMetadataMatcher.TryMatchMovieAsync(movie, preferredTitle, year, localPath, ffprobePath, cancellationToken).ConfigureAwait(false);
+            if (matched)
+            {
+                (preferredTitle, titleVariants) = ItemMetadata.ResolveTitles(movie, localPath);
+                year = ItemMetadata.ResolveYear(movie, localPath);
+            }
+        }
+
         var yearStr = year is not null ? $" ({year})" : string.Empty;
         var safeTitle = TitleMatching.SanitizeFilename($"{preferredTitle}{yearStr}");
 

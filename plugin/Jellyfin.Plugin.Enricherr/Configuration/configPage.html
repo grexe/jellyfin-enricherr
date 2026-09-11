@@ -183,6 +183,23 @@
                                     hit permission errors. No effect on Windows.
                                 </div>
                             </div>
+
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input id="SearchForMissingMetadata" name="SearchForMissingMetadata" type="checkbox" is="emby-checkbox" />
+                                    <span>Search for missing movie metadata</span>
+                                </label>
+                                <div class="fieldDescription settingHelp">
+                                    For a movie Jellyfin has no metadata match for at all (common for oddly-named releases -
+                                    scene tags, internal archive/catalog numbers - that defeat Jellyfin's own matching even
+                                    though the real title is findable once that noise is stripped), search using this
+                                    plugin's own cleaned-up title and apply a match, but only when it's confident: a strict
+                                    title match, the release year, and the candidate's own claimed runtime (checked against
+                                    this file, via ffprobe) all have to agree. Never touches a movie Jellyfin already
+                                    matched, right or wrong. Off by default - this is the only setting that changes a
+                                    movie's actual metadata rather than just adding a trailer/theme song next to it.
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -890,6 +907,7 @@
                         document.querySelector('#RenameSeriesFolders').checked = config.RenameSeriesFolders;
                         document.querySelector('#MigrateToFolders').value = config.MigrateToFolders;
                         document.querySelector('#FixPermissions').checked = config.FixPermissions;
+                        document.querySelector('#SearchForMissingMetadata').checked = config.SearchForMissingMetadata;
                         document.querySelector('#TriggerLibraryScan').checked = config.TriggerLibraryScan;
                         document.querySelector('#DryRun').checked = config.DryRun;
                         document.querySelector('#VerboseLogging').checked = config.VerboseLogging;
@@ -971,6 +989,7 @@
                         config.RenameSeriesFolders = document.querySelector('#RenameSeriesFolders').checked;
                         config.MigrateToFolders = document.querySelector('#MigrateToFolders').value;
                         config.FixPermissions = document.querySelector('#FixPermissions').checked;
+                        config.SearchForMissingMetadata = document.querySelector('#SearchForMissingMetadata').checked;
                         config.TriggerLibraryScan = document.querySelector('#TriggerLibraryScan').checked;
                         config.DryRun = document.querySelector('#DryRun').checked;
                         config.VerboseLogging = document.querySelector('#VerboseLogging').checked;

@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.4.0.0",
+        "changelog": "New, off-by-default setting: \"Search for missing movie metadata\". For a movie Jellyfin has no metadata match for at all (ProviderIds empty) - common for oddly-named releases with scene tags or internal archive/catalog numbers that defeat Jellyfin's own provider matching even though the real title is findable once that noise is stripped - this searches using this plugin's own cleaned-up title (via IProviderManager.GetRemoteSearchResults, riding on Jellyfin's own configured provider, no separate API key needed) and applies a match, but only when three independent signals all agree: (1) a strict but archive-number/subtitle-tolerant title match (new Levenshtein.TitleSimilarity - a prefix-aware check layered on plain edit distance, since raw edit distance badly under-scores a title carrying trailing catalog-number noise the real title doesn't have), (2) the release year within 1 year, and (3) the candidate's own claimed runtime (fetched directly from its provider, never by speculatively applying it to the real item first) matching this file's actual ffprobe'd duration within 1 minute. Deliberately conservative: never touches a movie Jellyfin already matched, right or wrong, and any signal failing leaves the item untouched and logged rather than guessing. New VideoProbe.GetDurationSecondsAsync reads the local duration directly via ffprobe rather than trusting Jellyfin's own cached RunTimeTicks, since an unmatched item is exactly the case where that cached value is least trustworthy.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.4.0.0.zip",
+        "checksum": "cf0c97b0e94d1426ec77c238fe0f3b13",
+        "timestamp": "2026-09-11T15:54:33Z"
+      },
+      {
         "version": "1.3.0.2",
         "changelog": "Fixed a misleading log line found live: movies are processed in alphabetical-by-title order, not grouped by folder, so a not-yet-migrated movie sitting directly in a shared flat library folder can alphabetically fall between two other movies that already have their own dedicated folders - the shared flat folder was getting revisited many times throughout a run, and each revisit logged \"*** Entering directory\" as if it were being seen for the first time (it was only ever compared against the immediately previous item's folder). Now tracks every folder actually seen so far this run, so a genuine revisit is silently skipped instead of misreported as a fresh entry.",
         "targetAbi": "10.11.0.0",

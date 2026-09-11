@@ -58,6 +58,7 @@ public class PluginConfiguration : BasePluginConfiguration
         AllowUpgradeInOtherLanguage = false;
         FetchThemeSongs = false;
         FixPermissions = false;
+        SearchForMissingMetadata = false;
     }
 
     /// <summary>
@@ -253,4 +254,21 @@ public class PluginConfiguration : BasePluginConfiguration
     /// No effect on Windows, where this was always a no-op.
     /// </summary>
     public bool FixPermissions { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether to search for and apply better remote
+    /// metadata for a movie Jellyfin has no match for at all (<c>ProviderIds</c>
+    /// empty) - common for oddly-named releases (scene tags, internal archive/catalog
+    /// numbers) that Jellyfin's own provider matching can't make sense of, even
+    /// though the title is findable once the noise is stripped (see
+    /// <see cref="Services.MissingMetadataMatcher"/>). Deliberately narrow and
+    /// conservative: only ever touches an item with NO existing match (never
+    /// second-guesses one Jellyfin already made, right or wrong), requires a strict
+    /// title similarity plus year match against the search candidate, and a runtime
+    /// cross-check (the candidate's own claimed runtime vs. this plugin's own ffprobe
+    /// of the local file, not Jellyfin's cached value) before ever applying anything -
+    /// unattended automatic metadata matching for the wrong movie is a real risk this
+    /// plugin would rather fail closed on than get wrong. Off by default.
+    /// </summary>
+    public bool SearchForMissingMetadata { get; set; }
 }

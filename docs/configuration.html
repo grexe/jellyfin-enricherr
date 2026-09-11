@@ -178,6 +178,21 @@
         where this is always a no-op.
       </p>
     </div>
+
+    <div class="setting">
+      <span class="name">Search for missing movie metadata</span><span class="default">default: off</span>
+      <p>
+        For a movie Jellyfin has no metadata match for at all — common for oddly-named releases (scene tags,
+        internal archive/catalog numbers) that defeat Jellyfin's own matching even though the real title is
+        findable once that noise is stripped — searches using this plugin's own cleaned-up title and applies
+        a match, but only when it's confident: a strict title match (tolerant of a trailing archive number or
+        subtitle Jellyfin's own search wouldn't be), the release year, and the candidate's own claimed
+        runtime (checked against the actual file via ffprobe, not Jellyfin's cached value) all have to agree.
+        Never touches a movie Jellyfin already matched, right or wrong — this only ever fills in a genuine
+        gap. Off by default: it's the only setting here that changes a movie's actual metadata rather than
+        just adding a trailer/theme song next to it.
+      </p>
+    </div>
   </div>
 
   <div class="setting-group">
