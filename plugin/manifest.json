@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.4.1.2",
+        "changelog": "Fixed another gap in the archive-catalog-number stripping used for the missing-metadata search query, found live: the pattern only handled exactly two hyphen-attached digit groups (\"-052393-000-A\"), but one real file's catalog id had an extra leading digit group AND was space- (not hyphen-) attached to the title (\"29, bald 45-039221-004-A\" - the id is \"45-039221-004-A\" as a whole) - the old pattern missed it entirely, leaving a stray \"45\" in the search query. Generalized to match two or more hyphen-terminated digit groups after either a space or a hyphen, verified against every real example seen live plus normal titles (including ones starting with a digit, e.g. \"12 Monkeys\") to confirm it still leaves those alone.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.4.1.2.zip",
+        "checksum": "ec9f72a7029e1d3fe2df242eb2962103",
+        "timestamp": "2026-09-11T18:52:54Z"
+      },
+      {
         "version": "1.4.1.1",
         "changelog": "Fixed another missing-metadata search gap found live: TMDb search - confirmed by hand at themoviedb.org - returns \"75 cl Schicksal\" fine with no year filter, but the API-level search with the resolved year attached found nothing, apparently treating the year as a hard filter rather than a hint. Since the scoring step already re-checks the candidate's year (with its own +/-1 tolerance) against whatever comes back, it's safe to also retry once without a year at all if every year-qualified attempt (full title, then archive-suffix-stripped title) came back empty.",
         "targetAbi": "10.11.0.0",

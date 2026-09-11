@@ -39,12 +39,18 @@ public class MissingMetadataMatcher
     private const double RuntimeToleranceMinutes = 1.0;
 
     // Matches a trailing internal archive/catalog number (e.g. "-052393-000-A") -
-    // confirmed live against a real "Kurzschluss"-style short-film archive: two
-    // hyphenated digit groups followed by a single letter, tacked onto an otherwise
-    // findable title. Deliberately narrow (not a general noise-stripping pattern -
-    // TitleMatching.CleanMediaTitle already handles the broad cases) since this is
-    // only used as a fallback SEARCH query, never applied to the display/rename title.
-    private static readonly Regex ArchiveCatalogSuffixRegex = new(@"-\d{4,}-\d{2,}-[A-Za-z]\s*$", RegexOptions.Compiled);
+    // confirmed live against a real "Kurzschluss"-style short-film archive: two or
+    // more hyphen-terminated digit groups followed by a single letter, tacked onto an
+    // otherwise findable title. The separator before the first digit group and the
+    // group count both vary in practice - confirmed live, one file's id was space-
+    // (not hyphen-) attached with an extra leading digit group ("29, bald
+    // 45-039221-004-A" - the catalog id is "45-039221-004-A" as a whole, not just the
+    // last two groups), which the original hyphen-only, exactly-two-groups pattern
+    // missed entirely, leaving a stray "45" in the search query. Deliberately still
+    // narrow (not a general noise-stripping pattern - TitleMatching.CleanMediaTitle
+    // already handles the broad cases) since this is only used as a fallback SEARCH
+    // query, never applied to the display/rename title.
+    private static readonly Regex ArchiveCatalogSuffixRegex = new(@"[\s-](?:\d+-){2,}[A-Za-z]\s*$", RegexOptions.Compiled);
 
     private readonly IProviderManager _providerManager;
     private readonly ILibraryManager _libraryManager;

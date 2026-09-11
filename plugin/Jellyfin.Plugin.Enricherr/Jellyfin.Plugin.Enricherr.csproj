@@ -14,9 +14,9 @@
          a task run or restart, and uninstall failing outright. package.sh reads
          this value (not build.yaml) as the source of truth and keeps build.yaml in
          sync, so this is the ONE place the version needs bumping. -->
-    <Version>1.4.1.1</Version>
-    <AssemblyVersion>1.4.1.1</AssemblyVersion>
-    <FileVersion>1.4.1.1</FileVersion>
+    <Version>1.4.1.2</Version>
+    <AssemblyVersion>1.4.1.2</AssemblyVersion>
+    <FileVersion>1.4.1.2</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
