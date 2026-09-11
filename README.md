@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://grexe.github.io/jellyfin-enricherr/"><strong>Documentation</strong></a>
+  <a href="https://kino.sen-labs.org/"><strong>Documentation</strong></a>
 </p>
 
 Jellyfin Enricherr runs as a scheduled task inside your Jellyfin server. For every movie or series without a local
@@ -86,8 +86,8 @@ Settings are grouped on the plugin's page:
   rate-limit retry behavior.
 - **Debugging and Testing** - dry-run mode and verbose per-candidate logging.
 
-See the [full configuration reference](https://grexe.github.io/jellyfin-enricherr/configuration.html) for
-what every setting does, and the [documentation](https://grexe.github.io/jellyfin-enricherr/) generally for
+See the [full configuration reference](https://kino.sen-labs.org/configuration.html) for
+what every setting does, and the [documentation](https://kino.sen-labs.org/) generally for
 how the plugin behaves and troubleshooting help.
 
 ## Building from source
