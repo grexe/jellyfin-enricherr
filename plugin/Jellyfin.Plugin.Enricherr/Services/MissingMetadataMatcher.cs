@@ -102,7 +102,7 @@ public class MissingMetadataMatcher
     /// <param name="candidateYear">This plugin's own resolved year, if any.</param>
     /// <param name="localPath">Path to the local video file, for the ffprobe runtime cross-check.</param>
     /// <param name="ffprobePath">Path to Jellyfin's own ffprobe binary, or null if unavailable.</param>
-    /// <param name="tmdbApiKey">A user-supplied TMDb API key for alternate-title lookups, or empty to skip them.</param>
+    /// <param name="tmdbApiKey">A user-supplied TMDb credential (API Read Access Token or API Key) for alternate-title lookups, or empty to skip them.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Whether a match was found and applied (Jellyfin's own metadata refresh already ran).</returns>
     public async Task<bool> TryMatchMovieAsync(

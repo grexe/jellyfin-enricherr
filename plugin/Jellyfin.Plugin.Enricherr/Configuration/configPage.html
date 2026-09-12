@@ -210,18 +210,20 @@
                             </div>
 
                             <div class="inputContainer" id="TmdbApiKeyContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDb API key (optional)</label>
+                                <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDb API Read Access Token (optional)</label>
                                 <input id="TmdbApiKey" name="TmdbApiKey" type="password" is="emby-input" autocomplete="off" />
                                 <div class="fieldDescription settingHelp">
                                     Used only to also check a candidate's alternate/localized titles when its primary
                                     title alone doesn't match closely enough - Jellyfin's own bundled TMDb integration
                                     never fetches these, and doesn't expose a way to reuse its own key for it. Get a
-                                    free key at
+                                    free one at
                                     <a is="emby-linkbutton" class="button-link" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a>
-                                    (the "API Key", not the "Read Access Token"). Leave empty to skip alternate-title
-                                    lookups and judge every candidate on its primary title alone. Only used here -
-                                    nowhere else in this plugin sends anything to TMDb with it. Disabled unless
-                                    "Search for missing movie metadata" above is on.
+                                    - the "API Read Access Token" (the long one; TMDb's own current API docs use this
+                                    for every example). The older, shorter "API Key" also works if that's what you
+                                    already have. Leave empty to skip alternate-title lookups and judge every
+                                    candidate on its primary title alone. Only used here - nowhere else in this
+                                    plugin sends anything to TMDb with it. Disabled unless "Search for missing movie
+                                    metadata" above is on.
                                 </div>
                             </div>
                         </div>

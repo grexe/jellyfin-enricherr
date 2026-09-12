@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.6.0.1",
+        "changelog": "Fixed a real bug found live, right after 1.6.0.0's first server test: the new TMDb alternate-titles lookup always sent the configured credential as a v3 api_key query parameter, but TMDb's own current API docs (developer.themoviedb.org) lead with the newer v4 \"API Read Access Token\" (a JWT) instead, which TMDb's server correctly rejects as an invalid v3 key with a plain HTTP 401 - confirmed live, the rescue lookup found and logged the right alternate title but the request itself failed, so the match was never actually accepted. TmdbAlternativeTitlesClient now detects which of the two credential types was pasted in (a v4 token is long and JWT-shaped) and authenticates accordingly - as a Bearer token for a v4 Read Access Token, as the api_key query parameter for the older v3 API Key - so either one from TMDb's settings page works. The settings-page field and docs now lead with \"API Read Access Token\" to match TMDb's own current guidance, while still accepting the older API Key.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.6.0.1.zip",
+        "checksum": "df2ffaccc1ae6408415e8ceda6e3de0f",
+        "timestamp": "2026-09-12T08:39:36Z"
+      },
+      {
         "version": "1.6.0.0",
         "changelog": "Missing-metadata search (1.4.0.0) now prioritizes title over year, per feedback that a candidate's release year turned out to be an unreliable signal in practice - confirmed live: \"75 cl Schicksal\" (1994) was filed under a 2020 archival/broadcast date that isn't its actual release year at all, so both the low title-similarity score against TMDb's primary (English) title and the year-mismatch rejection were technically correct given the information available, but still missed a real match. Candidates are now judged title > duration > year instead of year (hard filter) > title > duration: a strict title match (primary title, or - new - an alternate/localized title, if a TMDb API key is configured) is still required, but year is now only consulted as a fallback tie-breaker when the candidate's own claimed runtime (via ffprobe) can't be compared at all, rather than rejecting a title+duration match outright over a year that doesn't line up. New optional \"TMDb API key\" setting (Organisation group, empty/disabled by default) - a separate key of your own, since Jellyfin's bundled TMDb integration never fetches alternate titles and doesn't expose a way to reuse its own key for it; only ever used for this one lookup, and only as a rescue path once a candidate's primary title has already failed to match closely enough.",
         "targetAbi": "10.11.0.0",

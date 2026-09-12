@@ -54,7 +54,17 @@ public class TmdbAlternativeTitlesClient
     /// never throws) on a missing key/id or any failure - this is a best-effort rescue
     /// lookup, not a hard dependency the rest of the match should ever fail over.
     /// </summary>
-    /// <param name="apiKey">The user's own TMDb API key (v3 auth). Empty/whitespace short-circuits to no results.</param>
+    /// <param name="apiKey">
+    /// The user's own TMDb credential - either the short "API Key" (v3 auth, sent as
+    /// the <c>api_key</c> query parameter) or the long "API Read Access Token" (v4
+    /// auth, a JWT, sent as a Bearer token) from
+    /// https://www.themoviedb.org/settings/api - TMDb's settings page presents both
+    /// side by side under very similar names, so rather than silently 401ing when the
+    /// "wrong" one of the two is pasted in, both are recognized and used correctly
+    /// (confirmed live: a v4 Read Access Token sent as <c>api_key</c> gets a plain
+    /// HTTP 401 from TMDb, indistinguishable from a genuinely invalid key without
+    /// knowing this). Empty/whitespace short-circuits to no results.
+    /// </param>
     /// <param name="tmdbId">The candidate's TMDb movie id.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     public async Task<IReadOnlyList<(string CountryCode, string Title)>> GetAlternativeTitlesAsync(string apiKey, string tmdbId, CancellationToken cancellationToken)
@@ -64,20 +74,36 @@ public class TmdbAlternativeTitlesClient
             return Array.Empty<(string, string)>();
         }
 
-        var url = $"https://api.themoviedb.org/3/movie/{Uri.EscapeDataString(tmdbId)}/alternative_titles?api_key={Uri.EscapeDataString(apiKey)}";
+        // A v4 Read Access Token is a JWT (three dot-separated base64url segments,
+        // well over 100 characters); a v3 API key is a plain 32-character hex string.
+        // Long enough and dot-bearing is enough to tell them apart reliably without
+        // needing a full JWT parse.
+        var isV4Token = apiKey.Length > 100 && apiKey.Contains('.', StringComparison.Ordinal);
+
+        var url = isV4Token
+            ? $"https://api.themoviedb.org/3/movie/{Uri.EscapeDataString(tmdbId)}/alternative_titles"
+            : $"https://api.themoviedb.org/3/movie/{Uri.EscapeDataString(tmdbId)}/alternative_titles?api_key={Uri.EscapeDataString(apiKey)}";
 
         try
         {
             var client = _httpClientFactory.CreateClient();
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.UserAgent.Add(UserAgent);
+            if (isV4Token)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            }
+
             using var response = await client.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
-                    "  > TMDb alternative titles lookup for id {TmdbId} failed: HTTP {Status}.",
+                    "  > TMDb alternative titles lookup for id {TmdbId} failed: HTTP {Status}{Hint}.",
                     tmdbId,
-                    (int)response.StatusCode);
+                    (int)response.StatusCode,
+                    response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                        ? " - check the TMDb API key setting is correct and hasn't been revoked"
+                        : string.Empty);
                 return Array.Empty<(string, string)>();
             }
 

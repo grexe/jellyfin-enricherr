@@ -203,15 +203,17 @@
     </div>
 
     <div class="setting">
-      <span class="name">TMDb API key</span><span class="default">default: empty (optional)</span>
+      <span class="name">TMDb API Read Access Token</span><span class="default">default: empty (optional)</span>
       <p>
         Used only to also check a candidate's alternate/localized titles when its primary title alone doesn't
         match closely enough — Jellyfin's own bundled TMDb integration never fetches these, and doesn't
-        expose a way to reuse its own key for it, so this is a separate key of your own. Get a free one at
-        <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a>
-        (the "API Key", not the "Read Access Token"). Leave empty to skip alternate-title lookups and judge
-        every candidate on its primary title alone. Only used for this one lookup, nowhere else in this
-        plugin. Has no effect unless "Search for missing movie metadata" above is also on.
+        expose a way to reuse its own key for it, so this is a separate credential of your own. Get a free one
+        at <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">themoviedb.org/settings/api</a>
+        — the "API Read Access Token" (the long one; TMDb's own current API docs use this for every example).
+        The older, shorter "API Key" also works if that's what you already have. Leave empty to skip
+        alternate-title lookups and judge every candidate on its primary title alone. Only used for this one
+        lookup, nowhere else in this plugin. Has no effect unless "Search for missing movie metadata" above is
+        also on.
       </p>
     </div>
   </div>
