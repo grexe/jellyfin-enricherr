@@ -75,15 +75,21 @@ public static class ItemMetadata
     /// <param name="localPath">Path to the item's local file/folder, for its filename-derived title.</param>
     /// <param name="trustMetadata">
     /// When true, skips <see cref="TitleMatching.PreferFilenameOverMetadata"/> entirely
-    /// and always trusts <paramref name="item"/>'s own Name/OriginalTitle. Only meant
-    /// for re-resolving right after <see cref="MissingMetadataMatcher"/> has just
-    /// confidently applied a match this same run: that heuristic exists to catch
-    /// Jellyfin's own automatic matching going wrong (a new Name sharing little
-    /// vocabulary with the filename), but this plugin's own localized-title matching
-    /// deliberately produces exactly that shape of result on purpose (a German
-    /// filename correctly matched to its French/English TMDb title) - confirmed live,
-    /// without this the heuristic silently reverted the title right back to the raw,
-    /// unmatched filename immediately after a confident match was just applied.
+    /// (always trusts <paramref name="item"/>'s own Name/OriginalTitle) AND drops the
+    /// file-stem candidate from the returned title variants entirely, rather than
+    /// keeping it as a fallback. Only meant for re-resolving right after
+    /// <see cref="MissingMetadataMatcher"/> has just confidently applied a match this
+    /// same run: the filename-distrust heuristic exists to catch Jellyfin's own
+    /// automatic matching going wrong (a new Name sharing little vocabulary with the
+    /// filename), but this plugin's own localized-title matching deliberately
+    /// produces exactly that shape of result on purpose (a German filename correctly
+    /// matched to its French/English TMDb title) - confirmed live, without this the
+    /// heuristic silently reverted the title right back to the raw, unmatched
+    /// filename immediately after a confident match was just applied. The file stem
+    /// is dropped from the variants for the same reason: it's the one candidate this
+    /// plugin already positively knows not to trust here (that's the whole reason a
+    /// search was needed), so keeping it as a trailer-search fallback only wastes
+    /// YouTube requests searching a title already known to be wrong.
     /// </param>
     public static (string PreferredTitle, List<string> TitleVariants) ResolveTitles(BaseItem item, string localPath, bool trustMetadata = false)
     {
@@ -126,6 +132,18 @@ public static class ItemMetadata
             preferredTitle = nameCand;
         }
 
+        // trustMetadata drops the file-stem candidate entirely: it's only ever
+        // included as a fallback for the case where Jellyfin's own metadata might
+        // itself be untrustworthy - but trustMetadata means this plugin just
+        // independently verified the metadata itself (MissingMetadataMatcher), so
+        // the file stem is the one candidate we already positively know NOT to
+        // trust here (that mismatch is the entire reason a search was needed at
+        // all). Confirmed live: without this, a trailer search kept wastefully
+        // retrying the raw archive-numbered filename ("Der Briefwechsel-101840-000-A")
+        // as a final fallback stage even after successfully matching and renaming to
+        // the real title - guaranteed to find nothing beyond what the real title's
+        // own searches already tried, just burning extra YouTube requests and
+        // rate-limit exposure for certain failure.
         List<string> orderedCandidates;
         if (distrustMetadata)
         {
@@ -136,11 +154,11 @@ public static class ItemMetadata
         }
         else if (!TitleMatching.IsNonLatin(preferredTitle))
         {
-            orderedCandidates = [preferredTitle, origCand, stemCand, rawName];
+            orderedCandidates = trustMetadata ? [preferredTitle, origCand, rawName] : [preferredTitle, origCand, stemCand, rawName];
         }
         else
         {
-            orderedCandidates = [rawName, origCand, stemCand, preferredTitle];
+            orderedCandidates = trustMetadata ? [rawName, origCand, preferredTitle] : [rawName, origCand, stemCand, preferredTitle];
         }
 
         var titleVariants = new List<string>();

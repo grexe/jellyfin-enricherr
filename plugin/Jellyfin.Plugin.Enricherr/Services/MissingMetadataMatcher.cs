@@ -37,20 +37,35 @@ namespace Jellyfin.Plugin.Enricherr.Services;
 /// "alternative title" (TMDb has none on file for it at all) - its primary/English
 /// title ("A Bottle of Wishes") scored far too low against on its own.
 ///
+/// Every candidate is checked against its translations unconditionally, not only as
+/// a last resort once the primary title alone finds nothing - confirmed live why
+/// that distinction matters: a search for "Der Briefwechsel" (a German filename)
+/// matched TWO entirely different, unrelated films sharing that exact generic
+/// German phrase - "The Letter Room" (2020, TMDb, whose own German TMDb translation
+/// is literally "Der Briefwechsel") and an unrelated 2010 Austrian TV documentary
+/// about Thomas Bernhard's letters, via the far less rigorously curated "The Open
+/// Movie Database". The OMDb candidate's PRIMARY title happened to match exactly,
+/// which alone would already clear the threshold - so checking translations only
+/// "as a last resort" would never even look at TMDb's candidate, silently preferring
+/// the coincidental, less-trustworthy exact match over the real one. When multiple
+/// candidates all end up tied at an exact title match, the TMDb-sourced one is
+/// preferred - it's both the source curated well enough to trust here, and the only
+/// one this plugin can independently cross-check via translations at all.
+///
 /// Deliberately conservative regardless: (1) only ever touches an item with an EMPTY
 /// ProviderIds - never second-guesses a match Jellyfin already made, right or wrong;
 /// (2) always requires a strict title similarity match (primary or localized title)
-/// against the search candidate; (3) an exact (1.0-scored) title match is accepted on
-/// that alone - confirmed live that requiring corroboration on top of it only produces
-/// false negatives, since a title match this specific is already strong enough
-/// evidence, and a runtime/year cross-check isn't always even available; (4) anything
-/// short of an exact match additionally requires either the candidate's own claimed
-/// runtime (fetched from its provider directly, never by speculatively applying it to
-/// the real Jellyfin item first) to agree with this plugin's own ffprobe of the local
-/// file within a tight tolerance, or - only when a runtime comparison isn't possible
-/// at all - its year to agree within a looser tolerance. A candidate that fails all of
-/// this is left alone, logged, and Jellyfin's item is never touched - failing closed
-/// is the point.
+/// against the search candidate; (3) requires the candidate's own claimed runtime
+/// (fetched from its provider directly, never by speculatively applying it to the
+/// real Jellyfin item first) to agree with this plugin's own ffprobe of the local
+/// file within a tight tolerance, WHENEVER that comparison is actually possible - an
+/// available, disagreeing runtime rejects a candidate no matter how exact its title
+/// match is, since even that can coincidentally be the wrong movie (confirmed live:
+/// two entirely unrelated films can share the exact same generic title); (4) only
+/// when a runtime comparison genuinely isn't possible at all does an exact (1.0-scored)
+/// title match get accepted on that alone, or - anything less than exact - its year
+/// checked as a softer tie-breaker instead. A candidate that fails all of this is left
+/// alone, logged, and Jellyfin's item is never touched - failing closed is the point.
 /// </summary>
 public class MissingMetadataMatcher
 {
@@ -59,12 +74,19 @@ public class MissingMetadataMatcher
     // Levenshtein.TitleSimilarity returns the literal double 1.0 for both a true
     // exact (case-insensitive) match and its word-boundary-prefix case - never a
     // near-1.0 value from floating-point rounding - so this equality check is exact,
-    // not an approximation. A candidate this specific is strong enough evidence on
-    // its own: confirmed live, requiring duration/year corroboration on top of a
-    // literal 100% title hit only produced a false negative (a candidate's provider
-    // entry can simply have no RunTimeTicks recorded, and its own claimed release
-    // year can be an unrelated archival/broadcast date - neither is a reason to
-    // doubt a title match this exact).
+    // not an approximation. Only ever used as a stand-in for corroboration that
+    // ISN'T AVAILABLE (no local ffprobe result, or the candidate's provider reports
+    // no runtime) - confirmed live requiring corroboration that can't even be
+    // fetched only produces false negatives (a candidate's provider entry can simply
+    // have no RunTimeTicks recorded, and its own claimed release year can be an
+    // unrelated archival/broadcast date). This must NEVER override a corroboration
+    // signal that IS available and disagrees, though: also confirmed live, an exact
+    // title match can still be the wrong movie entirely when two unrelated films
+    // happen to share the exact same generic title from different providers ("Der
+    // Briefwechsel" matched both a real film via its TMDb translation and an
+    // unrelated, differently-run-timed Austrian TV documentary via a plain string
+    // match on a less-curated provider) - an available, disagreeing runtime rejects
+    // a candidate regardless of how exact its title match is.
     private const double ExactTitleSimilarity = 1.0;
     private const int YearToleranceYears = 1;
     private const double RuntimeToleranceMinutes = 1.0;
@@ -221,28 +243,33 @@ public class MissingMetadataMatcher
             }
         }
 
-        var scoredPrimary = results
-            .Select(r => (Result: r, Similarity: Levenshtein.TitleSimilarity(candidateTitle, r.Name), MatchedTitle: (string?)null))
-            .OrderByDescending(r => r.Similarity)
-            .ToList();
+        // Every candidate is scored against its own localized titles too, not just
+        // its primary one, and unconditionally - not only as a last resort once the
+        // primary title alone has already failed to find anything. Confirmed live
+        // why that matters: "Der Briefwechsel" (a German filename) matched TWO
+        // entirely different, unrelated films that happen to share the exact same
+        // generic German title - "The Letter Room" (2020, TMDb, whose OWN German
+        // TMDb translation is literally "Der Briefwechsel") and an unrelated 2010
+        // Austrian TV documentary about Thomas Bernhard's letters (via the much less
+        // rigorously curated "The Open Movie Database"). The OMDb candidate's
+        // PRIMARY title happened to match exactly, so it alone would already clear
+        // the threshold - meaning the old "only check translations once primary
+        // finds nothing" rule would never even look at TMDb's candidate, silently
+        // preferring the coincidental, less-trustworthy exact match. Scoring every
+        // candidate's translations up front is the only way both candidates end up
+        // properly compared.
+        var scoredCandidates = !string.IsNullOrWhiteSpace(tmdbApiKey)
+            ? await ScoreCandidatesAsync(candidateTitle, results, tmdbApiKey, cancellationToken).ConfigureAwait(false)
+            : results.Select(r => (Result: r, Similarity: Levenshtein.TitleSimilarity(candidateTitle, r.Name), MatchedTitle: (string?)null)).ToList();
+        scoredCandidates = scoredCandidates.OrderByDescending(r => r.Similarity).ToList();
 
-        var candidatesForSelection = scoredPrimary
+        var candidatesForSelection = scoredCandidates
             .Where(r => r.Similarity >= TitleSimilarityThreshold)
             .ToList();
 
-        // Rescue pass: a candidate's PRIMARY title is often just one localization of
-        // several TMDb knows about - only worth the extra API calls once the primary
-        // title alone has already failed to find anything, and only for candidates
-        // TMDb itself is the source of (an id from a different provider can't be
-        // looked up this way).
-        if (candidatesForSelection.Count == 0 && !string.IsNullOrWhiteSpace(tmdbApiKey))
-        {
-            candidatesForSelection = await RescueViaAlternateTitlesAsync(candidateTitle, results, tmdbApiKey, cancellationToken).ConfigureAwait(false);
-        }
-
         if (candidatesForSelection.Count == 0)
         {
-            var closest = scoredPrimary.FirstOrDefault();
+            var closest = scoredCandidates.FirstOrDefault();
             if (closest.Result is null)
             {
                 _logger.LogInformation(
@@ -266,6 +293,29 @@ public class MissingMetadataMatcher
             return false;
         }
 
+        // When several candidates ALL claim an exact title match, prefer the one
+        // TheMovieDb itself is the source of over any other provider - confirmed
+        // live (see above) that two unrelated films can tie here, and TMDb is both
+        // the source curated well enough for this plugin to trust it, and the only
+        // one this plugin can independently cross-check via translations at all
+        // (an OMDb/TVDB exact match has no such corroboration behind it whatsoever).
+        var exactMatches = candidatesForSelection.Where(c => c.Similarity >= ExactTitleSimilarity).ToList();
+        if (exactMatches.Count > 1 && !string.Equals(exactMatches[0].Result.SearchProviderName, "TheMovieDb", StringComparison.Ordinal))
+        {
+            var preferredTmdb = exactMatches.FirstOrDefault(c => string.Equals(c.Result.SearchProviderName, "TheMovieDb", StringComparison.Ordinal));
+            if (preferredTmdb.Result is not null)
+            {
+                _logger.LogInformation(
+                    "  > {Count} candidates all matched {Title}'s title exactly ({Names}) - preferring the TheMovieDb one, since only it can be cross-checked via translations.",
+                    exactMatches.Count,
+                    candidateTitle,
+                    string.Join(", ", exactMatches.Select(c => $"{c.Result.Name} ({c.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year"}, via {c.Result.SearchProviderName})")));
+                candidatesForSelection = new List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)> { preferredTmdb }
+                    .Concat(candidatesForSelection.Where(c => !ReferenceEquals(c.Result, preferredTmdb.Result)))
+                    .ToList();
+            }
+        }
+
         double? localDurationSeconds = null;
         if (string.IsNullOrEmpty(ffprobePath))
         {
@@ -280,13 +330,6 @@ public class MissingMetadataMatcher
         string? acceptedVia = null;
         foreach (var candidate in candidatesForSelection)
         {
-            if (candidate.Similarity >= ExactTitleSimilarity)
-            {
-                best = candidate;
-                acceptedVia = "an exact title match";
-                break;
-            }
-
             double? candidateRuntimeMinutes = localDurationSeconds is not null
                 ? await GetCandidateRuntimeMinutesAsync(movie, candidate.Result, cancellationToken).ConfigureAwait(false)
                 : null;
@@ -301,6 +344,15 @@ public class MissingMetadataMatcher
                     break;
                 }
 
+                // An available, disagreeing runtime rejects this candidate regardless
+                // of title similarity - even an exact (1.0) one. Confirmed live an
+                // exact title match can still be the wrong movie entirely (two
+                // unrelated films sharing a generic title, "Der Briefwechsel") - a
+                // real, independently-fetched runtime that disagrees is exactly the
+                // corroboration that catches that, and title similarity alone must
+                // never override a signal that's actually available and disagrees.
+                // The exact-match shortcut below only ever stands in for
+                // corroboration that ISN'T available, never overrides one that is.
                 _logger.LogInformation(
                     "  > {MatchName} matched {Title}'s title ({Similarity:P0} similar), but its runtime ({CandidateMinutes:F1} min) doesn't match the local file ({LocalMinutes:F1} min) - trying the next candidate, if any.",
                     candidate.Result.Name,
@@ -312,8 +364,18 @@ public class MissingMetadataMatcher
             }
 
             // Runtime couldn't be compared (no local ffprobe result, or the provider
-            // doesn't report one for this candidate) - fall back to year as a softer
-            // tie-breaker rather than rejecting outright on title alone.
+            // doesn't report one for this candidate). An exact title match is
+            // accepted on that alone here - confirmed live that requiring a
+            // corroboration signal that isn't even available only produces false
+            // negatives - but anything less than exact still falls back to year as a
+            // softer tie-breaker rather than rejecting outright on title alone.
+            if (candidate.Similarity >= ExactTitleSimilarity)
+            {
+                best = candidate;
+                acceptedVia = "an exact title match (no runtime available to cross-check)";
+                break;
+            }
+
             var yearOk = year is null || candidate.Result.ProductionYear is null || Math.Abs(candidate.Result.ProductionYear.Value - year.Value) <= YearToleranceYears;
             if (yearOk)
             {
@@ -376,78 +438,78 @@ public class MissingMetadataMatcher
     }
 
     /// <summary>
-    /// Re-scores every pooled candidate that has a TMDb id against ALL of its own
-    /// localized titles (<see cref="TmdbTranslationsClient"/>), taking whichever one
-    /// scores best - deliberately NOT filtered down to the item's own resolved
-    /// preferred metadata language first. Confirmed live that filtering by it is
-    /// actively wrong here: for "75 cl Schicksal" (a German-titled short film from a
-    /// mixed-language foreign-short-film archive), the LIBRARY's own configured
-    /// metadata language resolved to English, not German - so restricting the
-    /// candidate pool to "the preferred language's translation" before scoring picked
-    /// the English translation (identical to the primary title, same low score) and
-    /// never even looked at the German one that would have matched. This rescue path
-    /// exists specifically for the case where a file's own title is in some language
-    /// this plugin has no reliable way to know in advance - a library-wide language
-    /// setting doesn't tell us that, and filtering by it can only ever hide a genuine
-    /// match, never help find one; the strict similarity threshold below is what
-    /// keeps this safe, not a language filter. Only ever called once the candidate's
-    /// primary title has already failed to find anything, to keep the extra API calls
-    /// to a minimum.
+    /// Scores every pooled candidate against both its primary title and, for any
+    /// candidate TMDb is the source of, its full set of TMDb translations
+    /// (<see cref="TmdbTranslationsClient"/>) too - taking whichever of the two
+    /// scores best. Deliberately NOT filtered down to the item's own resolved
+    /// preferred metadata language first: confirmed live that doing so is actively
+    /// wrong (for "75 cl Schicksal", a mixed-language foreign-short-film archive's
+    /// LIBRARY-wide configured metadata language resolved to English, not German,
+    /// so restricting to "the preferred language's translation" picked the English
+    /// one - identical to the primary title, same low score - and never even looked
+    /// at the German one that actually matched). A file's own title can be in any
+    /// language this plugin has no reliable way to predict in advance; the strict
+    /// similarity threshold callers apply afterward is what keeps this safe, not a
+    /// language filter. Every candidate is scored this way unconditionally, not only
+    /// once the primary title alone has already failed to find anything - confirmed
+    /// live why that distinction matters too: two entirely different films can share
+    /// the exact same generic localized title, one via a well-curated TMDb
+    /// translation and the other by pure coincidence on a less-curated provider's
+    /// primary title, and only checking translations "as a last resort" would let
+    /// the coincidental, unrelated match win by never even looking at the real one.
     /// </summary>
-    private async Task<List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>> RescueViaAlternateTitlesAsync(
+    private async Task<List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>> ScoreCandidatesAsync(
         string candidateTitle,
         List<RemoteSearchResult> results,
         string tmdbApiKey,
         CancellationToken cancellationToken)
     {
-        var rescored = new List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>();
+        var scored = new List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>();
 
         foreach (var candidate in results)
         {
-            if (!candidate.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbId) || string.IsNullOrEmpty(tmdbId))
+            var primarySimilarity = Levenshtein.TitleSimilarity(candidateTitle, candidate.Name);
+            double bestSimilarity = primarySimilarity;
+            string? matchedTitle = null;
+
+            if (candidate.TryGetProviderId(MetadataProvider.Tmdb, out var tmdbId) && !string.IsNullOrEmpty(tmdbId))
             {
-                continue;
+                var translations = await _tmdbTranslationsClient.GetTranslatedTitlesAsync(tmdbApiKey, tmdbId, cancellationToken).ConfigureAwait(false);
+                if (translations.Count == 0)
+                {
+                    // Logged rather than silently skipped - otherwise a candidate
+                    // with genuinely no localized titles at all is indistinguishable
+                    // from one this check never got to run for, which made an
+                    // earlier version of this bug (a bad auth header) look like
+                    // "nothing found" instead of the request outright failing.
+                    _logger.LogInformation("  > {MatchName} (id {TmdbId}) has no TMDb translations to check.", candidate.Name, tmdbId);
+                }
+                else
+                {
+                    var bestTranslation = translations
+                        .Select(t => (Title: t.Title, Similarity: Levenshtein.TitleSimilarity(candidateTitle, t.Title)))
+                        .OrderByDescending(t => t.Similarity)
+                        .First();
+
+                    if (bestTranslation.Similarity > bestSimilarity)
+                    {
+                        bestSimilarity = bestTranslation.Similarity;
+                        matchedTitle = bestTranslation.Title;
+                        _logger.LogInformation(
+                            "  > {Title} matched {MatchName} via its localized title \"{TranslatedTitle}\" ({Similarity:P0} similar) - its primary title only scored {PrimarySimilarity:P0}.",
+                            candidateTitle,
+                            candidate.Name,
+                            bestTranslation.Title,
+                            bestTranslation.Similarity,
+                            primarySimilarity);
+                    }
+                }
             }
 
-            var translations = await _tmdbTranslationsClient.GetTranslatedTitlesAsync(tmdbApiKey, tmdbId, cancellationToken).ConfigureAwait(false);
-            if (translations.Count == 0)
-            {
-                // Logged rather than silently skipped - otherwise a candidate with
-                // genuinely no localized titles at all is indistinguishable from one
-                // this whole rescue attempt never got to check, which made an earlier
-                // version of this bug (a bad auth header) look like "nothing found"
-                // instead of the request outright failing.
-                _logger.LogInformation("  > {MatchName} (id {TmdbId}) has no TMDb translations to check.", candidate.Name, tmdbId);
-                continue;
-            }
-
-            var bestTranslation = translations
-                .Select(t => (Title: t.Title, Similarity: Levenshtein.TitleSimilarity(candidateTitle, t.Title)))
-                .OrderByDescending(t => t.Similarity)
-                .First();
-
-            if (bestTranslation.Similarity >= TitleSimilarityThreshold)
-            {
-                _logger.LogInformation(
-                    "  > {Title} matched {MatchName} via its localized title \"{TranslatedTitle}\" ({Similarity:P0} similar) - its primary title did not.",
-                    candidateTitle,
-                    candidate.Name,
-                    bestTranslation.Title,
-                    bestTranslation.Similarity);
-                rescored.Add((candidate, bestTranslation.Similarity, bestTranslation.Title));
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "  > {MatchName}'s closest localized title to {Title} was \"{TranslatedTitle}\" ({Similarity:P0} similar) - still below threshold.",
-                    candidate.Name,
-                    candidateTitle,
-                    bestTranslation.Title,
-                    bestTranslation.Similarity);
-            }
+            scored.Add((candidate, bestSimilarity, matchedTitle));
         }
 
-        return rescored.OrderByDescending(r => r.Similarity).ToList();
+        return scored;
     }
 
     /// <summary>

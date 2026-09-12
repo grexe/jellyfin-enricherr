@@ -194,14 +194,18 @@
         a match, but only when it's confident. Candidates are judged in this order: (1) title — a strict
         similarity match against the candidate's primary title (tolerant of a trailing archive number or
         subtitle Jellyfin's own search wouldn't be), or its localized titles if a TMDb credential is set
-        below; an exact title match is accepted on that alone, without needing anything else to agree; (2)
-        duration — for anything less than exact, the candidate's own claimed runtime, checked against the
-        actual file via ffprobe, not Jellyfin's cached value; (3) year — only consulted as a looser fallback
-        when a runtime comparison isn't possible at all. A candidate's release year turned out to be an
-        unreliable signal in practice (an archival/broadcast date can get mistaken for the actual release
-        year), so duration is trusted well ahead of it whenever both are available. Never touches a movie
-        Jellyfin already matched, right or wrong — this only ever fills in a genuine gap. Off by default: it's
-        the only setting here that changes a movie's actual metadata rather than just adding a trailer/theme
+        below; (2) duration — the candidate's own claimed runtime, checked against the actual file via
+        ffprobe, not Jellyfin's cached value, wins whenever it's available: an available runtime that
+        disagrees rejects a candidate no matter how exact its title match is, since even that can occasionally
+        be the wrong movie entirely (two unrelated films can share the exact same title); (3) year — only
+        consulted as a looser fallback for anything less than an exact title match, and only when a runtime
+        comparison genuinely isn't possible at all. An exact title match is accepted on its own only in that
+        same situation — no runtime available to check it against. A candidate's release year turned out to
+        be an unreliable signal in practice (an archival/broadcast date can get mistaken for the actual
+        release year), so duration is trusted well ahead of it whenever both are available. Never touches a
+        movie Jellyfin already matched, right or wrong — this only ever fills in a genuine gap. Off by
+        default: it's the only setting here that changes a movie's actual metadata rather than just adding a
+        trailer/theme
         song next to it.
       </p>
     </div>
@@ -212,10 +216,12 @@
         Don't have one? <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer"><strong>Sign up for a free TMDb API key</strong></a> — it takes a minute, and TMDb's approval is near-instant.
       </p>
       <p>
-        Used only to also check a candidate's localized titles (TMDb's per-language translations, not the
-        separate, sparsely-populated "alternative titles" list) when its primary title alone doesn't match
-        closely enough — Jellyfin's own bundled TMDb integration never fetches these, and doesn't expose a way
-        to reuse its own key for it, so this is a separate credential of your own. Paste in either the "API
+        Used to also check each candidate's localized titles (TMDb's per-language translations, not the
+        separate, sparsely-populated "alternative titles" list), not just its primary one — helps most when
+        the primary title alone doesn't match closely enough, and also breaks ties in favor of TMDb when two
+        entirely different candidates from different providers happen to share the same title. Jellyfin's own
+        bundled TMDb integration never fetches these, and doesn't expose a way to reuse its own key for it, so
+        this is a separate credential of your own. Paste in either the "API
         Read Access Token" (the long one; TMDb's own current API docs use this for every example) or the
         older, shorter "API Key" — both work. Leave empty to skip localized-title lookups and judge every
         candidate on its primary title alone. Only used for this one lookup, nowhere else in this plugin. Has

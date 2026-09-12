@@ -200,13 +200,17 @@
                                     though the real title is findable once that noise is stripped), search using this
                                     plugin's own cleaned-up title and apply a match, but only when it's confident: a strict
                                     title match (checked against the candidate's primary title, and its localized
-                                    titles too if a TMDb credential is set below) is always required, and an exact
-                                    title match is accepted on that alone - anything less also needs its own claimed
-                                    runtime (checked against this file, via ffprobe) or, only when runtime can't be
-                                    compared, the release year as a looser fallback to agree too. Never touches a
-                                    movie Jellyfin already matched, right or wrong. Off by default - this is the only
-                                    setting that changes a movie's actual metadata rather than just adding a
-                                    trailer/theme song next to it.
+                                    titles too if a TMDb credential is set below) is always required, and its own
+                                    claimed runtime (checked against this file, via ffprobe) always wins when it's
+                                    available - an available runtime that disagrees rejects a candidate no matter
+                                    how exact its title match is, since even that can occasionally be the wrong
+                                    movie entirely (two unrelated films can share the exact same title). An exact
+                                    title match is only ever accepted on its own when a runtime comparison genuinely
+                                    isn't possible at all; anything less than exact falls back to the release year
+                                    as a looser tie-breaker in that case instead. Never touches a movie Jellyfin
+                                    already matched, right or wrong. Off by default - this is the only setting that
+                                    changes a movie's actual metadata rather than just adding a trailer/theme song
+                                    next to it.
                                 </div>
                             </div>
 
@@ -217,11 +221,13 @@
                                     Don't have one? <a is="emby-linkbutton" class="button-link" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">Sign up for a free TMDb API key</a> - it takes a minute, and TMDb's approval is near-instant.
                                 </div>
                                 <div class="fieldDescription settingHelp">
-                                    Used only to also check a candidate's localized titles (TMDb's per-language
-                                    translations, not the separate, sparsely-populated "alternative titles" list)
-                                    when its primary title alone doesn't match closely enough - Jellyfin's own
-                                    bundled TMDb integration never fetches these, and doesn't expose a way to reuse
-                                    its own key for it. Paste in either the "API Read Access Token" (the long one;
+                                    Used to also check each candidate's localized titles (TMDb's per-language
+                                    translations, not the separate, sparsely-populated "alternative titles" list),
+                                    not just its primary one - helps most when the primary title alone doesn't
+                                    match closely enough, and also breaks ties in favor of TMDb when two entirely
+                                    different candidates from different providers happen to share the same title.
+                                    Jellyfin's own bundled TMDb integration never fetches these, and doesn't expose
+                                    a way to reuse its own key for it. Paste in either the "API Read Access Token" (the long one;
                                     TMDb's own current API docs use this for every example) or the older, shorter
                                     "API Key" - both work. Leave empty to skip localized-title lookups and judge
                                     every candidate on its primary title alone. Only used here - nowhere else in
