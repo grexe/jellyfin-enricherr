@@ -115,8 +115,16 @@ public class FetchTrailersTask : IScheduledTask
         // affect" rather than treating the whole configured scan scope as one unit.
         var libraryIds = config.LibraryIds ?? Array.Empty<string>();
         var libraries = _libraryItemsFinder.ResolveLibrariesInScope(libraryIds);
+
+        // logProgress: false below - ResolveLibrariesInScope just above already
+        // resolved and logged "Scanning library ..." for every one of these; each
+        // GetMovies/GetSeries call here re-resolves that same single, already-known
+        // library from scratch internally (a second GetItemById lookup for a library
+        // whose BaseItem we're already holding right here as `lib`), which - before
+        // this fix - logged that same "Scanning library ..." line a second time in a
+        // row for every library, immediately confusing to read.
         var libraryBatches = libraries
-            .Select(lib => new LibraryBatch(lib, _libraryItemsFinder.GetMovies([lib.Id.ToString()]), _libraryItemsFinder.GetSeries([lib.Id.ToString()])))
+            .Select(lib => new LibraryBatch(lib, _libraryItemsFinder.GetMovies([lib.Id.ToString()], logProgress: false), _libraryItemsFinder.GetSeries([lib.Id.ToString()], logProgress: false)))
             .ToList();
 
         var totalMovies = libraryBatches.Sum(b => b.Movies.Count);

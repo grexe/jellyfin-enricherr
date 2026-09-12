@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.6.1.2",
+        "changelog": "Fixed confusing duplicate log lines noticed live: every configured library's name was logged as \"Scanning library ...\" twice in a row at the start of a run. ResolveLibrariesInScope already resolves and logs every configured library once; the per-library batch construction right after it then called GetMovies/GetSeries scoped to that same single, already-known library, which re-resolved it from scratch internally (a redundant second GetItemById lookup) and logged it again. Purely cosmetic - correctness was never affected, since both resolutions landed on the exact same library - now suppressed via logProgress: false on that second, redundant call.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.6.1.2.zip",
+        "checksum": "8e9e8732136f9b18513e9ab4353a9b5f",
+        "timestamp": "2026-09-12T09:48:30Z"
+      },
+      {
         "version": "1.6.1.1",
         "changelog": "Fixed a real bug found live on both 1.6.1.0 test cases: applying a confident missing-metadata match (\"75 cl Schicksal\" -> \"A Bottle of Wishes\") worked, but the very next step - re-resolving the item's title/year from its newly-matched metadata - silently undid it. ItemMetadata.ResolveTitles/ResolveYear both compare Jellyfin's metadata against the raw filename and fall back to the filename when they look too different, specifically to catch JELLYFIN's OWN automatic matching going wrong - but this plugin's localized-title rescue deliberately produces exactly that shape of result on purpose (a German filename correctly matched to its English/French TMDb title), so the heuristic reverted the title right back to the raw, unmatched filename immediately after a confident match was just applied (confirmed live: one of the two test cases kept using the raw filename as its title and never got renamed at all). The year heuristic had the same problem in reverse: it always preferred the file's embedded (deliberately unreliable, per 1.6.0.0's own finding) archival date over the freshly-matched real release year, feeding a wrong-year YouTube trailer search on every successful match. Both methods gained a trustMetadata parameter, set to true only when re-resolving right after this plugin's own match - a match this plugin already independently verified itself, so second-guessing it here was actively counter-productive. As a side effect, the trailer search should also now try the correctly-matched title/original title, not just the raw archive-numbered filename.",
         "targetAbi": "10.11.0.0",
