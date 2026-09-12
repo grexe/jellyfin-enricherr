@@ -222,7 +222,7 @@ public class MissingMetadataMatcher
         // looked up this way).
         if (candidatesForSelection.Count == 0 && !string.IsNullOrWhiteSpace(tmdbApiKey))
         {
-            candidatesForSelection = await RescueViaAlternateTitlesAsync(movie, candidateTitle, results, tmdbApiKey, cancellationToken).ConfigureAwait(false);
+            candidatesForSelection = await RescueViaAlternateTitlesAsync(candidateTitle, results, tmdbApiKey, cancellationToken).ConfigureAwait(false);
         }
 
         if (candidatesForSelection.Count == 0)
@@ -350,30 +350,30 @@ public class MissingMetadataMatcher
     }
 
     /// <summary>
-    /// Re-scores every pooled candidate that has a TMDb id against its own localized
-    /// titles (<see cref="TmdbTranslationsClient"/>), preferring the one tagged with
-    /// the item's own resolved preferred metadata language - the same
-    /// <see cref="MediaBrowser.Controller.Entities.BaseItem.GetPreferredMetadataLanguage"/>
-    /// resolution already used for trailer-language preference elsewhere in this
-    /// plugin, just another facette of the same "prefer this item's own language"
-    /// idea - and falling back to whichever localized title scores best otherwise
-    /// (including when no language preference is configured at all). Only ever called
-    /// once the candidate's primary title has already failed to find anything, to
-    /// keep the extra API calls to a minimum.
+    /// Re-scores every pooled candidate that has a TMDb id against ALL of its own
+    /// localized titles (<see cref="TmdbTranslationsClient"/>), taking whichever one
+    /// scores best - deliberately NOT filtered down to the item's own resolved
+    /// preferred metadata language first. Confirmed live that filtering by it is
+    /// actively wrong here: for "75 cl Schicksal" (a German-titled short film from a
+    /// mixed-language foreign-short-film archive), the LIBRARY's own configured
+    /// metadata language resolved to English, not German - so restricting the
+    /// candidate pool to "the preferred language's translation" before scoring picked
+    /// the English translation (identical to the primary title, same low score) and
+    /// never even looked at the German one that would have matched. This rescue path
+    /// exists specifically for the case where a file's own title is in some language
+    /// this plugin has no reliable way to know in advance - a library-wide language
+    /// setting doesn't tell us that, and filtering by it can only ever hide a genuine
+    /// match, never help find one; the strict similarity threshold below is what
+    /// keeps this safe, not a language filter. Only ever called once the candidate's
+    /// primary title has already failed to find anything, to keep the extra API calls
+    /// to a minimum.
     /// </summary>
     private async Task<List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>> RescueViaAlternateTitlesAsync(
-        Movie movie,
         string candidateTitle,
         List<RemoteSearchResult> results,
         string tmdbApiKey,
         CancellationToken cancellationToken)
     {
-        // Only the primary language subtag matters here - GetPreferredMetadataLanguage
-        // can return a full tag like "de-DE", but TMDb's translations are keyed by the
-        // bare ISO 639-1 code ("de") alone (see TrailerLanguages.GetNativeTrailerWords
-        // for the same normalization, used for the same underlying preference).
-        var preferredLanguage = movie.GetPreferredMetadataLanguage()?.Split('-', 2)[0];
-        var preferredCountry = movie.GetPreferredMetadataCountryCode();
         var rescored = new List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>();
 
         foreach (var candidate in results)
@@ -395,18 +395,7 @@ public class MissingMetadataMatcher
                 continue;
             }
 
-            var byPreferredLanguage = !string.IsNullOrEmpty(preferredLanguage)
-                ? translations.Where(t => string.Equals(t.LanguageCode, preferredLanguage, StringComparison.OrdinalIgnoreCase)).ToList()
-                : new List<(string LanguageCode, string CountryCode, string Title)>();
-
-            // Multiple entries can share a language across different countries (e.g.
-            // "de" for both Germany and Austria/Switzerland) - prefer the one that
-            // also matches the item's own resolved country when there's a choice.
-            var titlesToScore = byPreferredLanguage.Count > 1 && !string.IsNullOrEmpty(preferredCountry)
-                ? byPreferredLanguage.Where(t => string.Equals(t.CountryCode, preferredCountry, StringComparison.OrdinalIgnoreCase)).DefaultIfEmpty(byPreferredLanguage[0]).ToList()
-                : (byPreferredLanguage.Count > 0 ? byPreferredLanguage : translations);
-
-            var bestTranslation = titlesToScore
+            var bestTranslation = translations
                 .Select(t => (Title: t.Title, Similarity: Levenshtein.TitleSimilarity(candidateTitle, t.Title)))
                 .OrderByDescending(t => t.Similarity)
                 .First();

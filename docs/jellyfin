@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.6.0.3",
+        "changelog": "Fixed the localized-title rescue path (1.6.0.2) still not accepting the exact motivating match, confirmed live: it was filtering TMDb's translations down to the item's own resolved preferred metadata LANGUAGE before scoring, but for a mixed-language foreign-short-film archive the LIBRARY's own configured metadata language resolved to English, not German - so the candidate pool was wrongly restricted to the English translation (identical to the primary title, same low score) and the matching German one was never even looked at. This rescue path exists specifically for titles in a language this plugin has no reliable way to know in advance, so filtering by a library-wide language setting can only ever hide a genuine match, never help find one - the strict title-similarity threshold is what keeps this safe, not a language filter. Now scores every translation TMDb has and takes whichever one matches best, with no language pre-filtering at all.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.6.0.3.zip",
+        "checksum": "fa8f47eea95dd2ad9dca83806fc17954",
+        "timestamp": "2026-09-12T08:57:35Z"
+      },
+      {
         "version": "1.6.0.2",
         "changelog": "Fixed the actual root cause behind 1.6.0.0/1.6.0.1's missing-metadata rescue path never accepting a match, found by checking TMDb's own website directly for the motivating case: \"75 cl Schicksal\" has ZERO entries in TMDb's curated \"alternative titles\" list (confirmed on themoviedb.org itself - \"Es wurden keine Alternativtitel hinzugefügt\"), which is the endpoint this feature was calling. It IS present as this film's German TMDb *translation* (GET /movie/{id}/translations, de-DE) - a separate, far more commonly populated dataset (every language TMDb has a community localization for, not just curated regional AKAs). TmdbAlternativeTitlesClient is replaced by TmdbTranslationsClient, calling /translations instead - matched primarily against the item's own resolved preferred metadata LANGUAGE (the same GetPreferredMetadataLanguage() facette already used for trailer-language preference, per feedback that this should reuse that exact idea), with country code only as a tie-breaker between same-language entries, falling back to every translation's title otherwise. Also added diagnostic logging for two previously-silent outcomes (a candidate with no TMDb translations at all, and one whose best translation still scored below threshold) - the previous silent failure mode (no log line either way) is what made the wrong-endpoint bug indistinguishable from \"nothing to find\" in the first place.",
         "targetAbi": "10.11.0.0",
