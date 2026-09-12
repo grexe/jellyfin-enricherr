@@ -496,10 +496,17 @@
                 container.innerHTML = '';
 
                 if (!rows || rows.length === 0) {
+                    // fieldDescription is Jellyfin's own dimmed/secondary-text style -
+                    // right for a placeholder line, but it also dims every cell of the
+                    // real table below (nothing in the table itself sets its own text
+                    // color, so it just inherits whatever this container has) - kept
+                    // on here, removed the moment there's an actual table to show.
+                    container.classList.add('fieldDescription');
                     container.textContent = 'Nothing in scope.';
                     return;
                 }
 
+                container.classList.remove('fieldDescription');
                 var table = document.createElement('table');
                 table.style.borderCollapse = 'collapse';
                 table.style.width = '100%';
@@ -601,7 +608,9 @@
 
                 var rows = tab === 'current' ? statsData.current : (tab === 'lastRun' ? statsData.lastRun : statsData.overall);
                 if (rows === null) {
-                    document.querySelector('#StatsTableContainer').textContent =
+                    var tableContainer = document.querySelector('#StatsTableContainer');
+                    tableContainer.classList.add('fieldDescription');
+                    tableContainer.textContent =
                         tab === 'overall' ? 'Loading…' : (tab === 'current' ? 'No run currently in progress.' : 'No run yet.');
                 } else {
                     renderStatsTable(rows);
@@ -875,7 +884,9 @@
                     }
                 }).catch(function (err) {
                     if (activeStatsTab === 'overall') {
-                        document.querySelector('#StatsTableContainer').textContent = 'Failed to load library totals: ' + err.message;
+                        var tableContainer = document.querySelector('#StatsTableContainer');
+                        tableContainer.classList.add('fieldDescription');
+                        tableContainer.textContent = 'Failed to load library totals: ' + err.message;
                     }
                 });
             }
@@ -942,7 +953,9 @@
                             statsData.current = null;
                             document.querySelector('#CurrentRunHeader').textContent = 'No run currently in progress.';
                             if (activeStatsTab === 'current') {
-                                document.querySelector('#StatsTableContainer').textContent = 'No run currently in progress.';
+                                var tableContainer = document.querySelector('#StatsTableContainer');
+                                tableContainer.classList.add('fieldDescription');
+                                tableContainer.textContent = 'No run currently in progress.';
                             }
 
                             loadLastRunSummary();

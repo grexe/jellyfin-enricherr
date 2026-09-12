@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.6.1.3",
+        "changelog": "Fixed the Statistics table looking washed-out and hard to read, noticed live: #StatsTableContainer carried Jellyfin's own \"fieldDescription\" class - the dimmed, secondary-text styling meant for small explanatory captions - as a leftover from before the table existed, back when this container only ever held a plain \"Loading...\" placeholder string. Nothing in the table itself sets its own text color, so every cell (library names, item counts, coverage percentages) silently inherited that dimmed styling too, on all three tabs. The class is now toggled dynamically: still applied for genuine placeholder/status text (\"Loading...\", \"No run yet.\", \"Nothing in scope.\", load failures), removed the moment an actual table is rendered.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.6.1.3.zip",
+        "checksum": "d1938a17944e4440aecad4f09ba89071",
+        "timestamp": "2026-09-12T10:02:41Z"
+      },
+      {
         "version": "1.6.1.2",
         "changelog": "Fixed confusing duplicate log lines noticed live: every configured library's name was logged as \"Scanning library ...\" twice in a row at the start of a run. ResolveLibrariesInScope already resolves and logs every configured library once; the per-library batch construction right after it then called GetMovies/GetSeries scoped to that same single, already-known library, which re-resolved it from scratch internally (a redundant second GetItemById lookup) and logged it again. Purely cosmetic - correctness was never affected, since both resolutions landed on the exact same library - now suppressed via logProgress: false on that second, redundant call.",
         "targetAbi": "10.11.0.0",
