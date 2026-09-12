@@ -277,16 +277,19 @@ public class PluginConfiguration : BasePluginConfiguration
     /// Gets or sets a TMDb credential (free at
     /// https://www.themoviedb.org/settings/api - either the "API Read Access Token"
     /// (v4 auth, a JWT, the one TMDb's own current API docs use) or the older "API
-    /// Key" (v3 auth); <see cref="Services.TmdbAlternativeTitlesClient"/> detects
-    /// which was pasted in and authenticates accordingly, since TMDb's settings page
-    /// presents both side by side under easily-confused names), used only to fetch a
-    /// search candidate's alternate/localized titles while matching missing metadata
-    /// (see <see cref="Services.MissingMetadataMatcher"/>). Jellyfin's own bundled
-    /// TMDb integration never requests this data and doesn't expose a way to reuse its
-    /// own key for it, so this plugin needs its own - deliberately scoped to this one
+    /// Key" (v3 auth); <see cref="Services.TmdbTranslationsClient"/> detects which was
+    /// pasted in and authenticates accordingly, since TMDb's settings page presents
+    /// both side by side under easily-confused names), used only to fetch a search
+    /// candidate's localized titles (<c>/movie/{id}/translations</c> - deliberately
+    /// not the separate, sparsely-populated "alternative titles" list; confirmed live
+    /// that a real rescue case had nothing on the latter but its needed title as a
+    /// translation) while matching missing metadata (see
+    /// <see cref="Services.MissingMetadataMatcher"/>). Jellyfin's own bundled TMDb
+    /// integration never requests this data and doesn't expose a way to reuse its own
+    /// key for it, so this plugin needs its own - deliberately scoped to this one
     /// lookup, not used anywhere else. Only consulted as a rescue path when a
     /// candidate's primary title doesn't already clear the similarity bar; leave empty
-    /// to skip alternate-title lookups entirely and judge every candidate on its
+    /// to skip localized-title lookups entirely and judge every candidate on its
     /// primary title alone, same as before this setting existed.
     /// </summary>
     public string TmdbApiKey { get; set; }

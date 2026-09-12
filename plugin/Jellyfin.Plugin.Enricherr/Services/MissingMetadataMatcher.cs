@@ -31,14 +31,15 @@ namespace Jellyfin.Plugin.Enricherr.Services;
 /// under a 2020 archival/broadcast date that isn't the film's actual release year at
 /// all), while the local file's own runtime (via ffprobe) is a strong, independent
 /// corroboration a wrong title match is very unlikely to also happen to satisfy. Title
-/// matching also checks a candidate's alternate/localized titles
-/// (<see cref="TmdbAlternativeTitlesClient"/>), not just its primary one - the same
-/// "75 cl Schicksal" case is a German title for a film TMDb's primary/English title
-/// ("A Bottle of Wishes") scored far too low against on its own.
+/// matching also checks a candidate's own TMDb translations
+/// (<see cref="TmdbTranslationsClient"/>), not just its primary title - the same
+/// "75 cl Schicksal" case is that film's German TMDb *translation*, not a curated
+/// "alternative title" (TMDb has none on file for it at all) - its primary/English
+/// title ("A Bottle of Wishes") scored far too low against on its own.
 ///
 /// Deliberately conservative regardless: (1) only ever touches an item with an EMPTY
 /// ProviderIds - never second-guesses a match Jellyfin already made, right or wrong;
-/// (2) always requires a strict title similarity match (primary or alternate title)
+/// (2) always requires a strict title similarity match (primary or localized title)
 /// against the search candidate; (3) requires either the candidate's own claimed
 /// runtime (fetched from its provider directly, never by speculatively applying it to
 /// the real Jellyfin item first) to agree with this plugin's own ffprobe of the local
@@ -70,7 +71,7 @@ public class MissingMetadataMatcher
     private readonly IProviderManager _providerManager;
     private readonly ILibraryManager _libraryManager;
     private readonly IDirectoryService _directoryService;
-    private readonly TmdbAlternativeTitlesClient _tmdbAlternativeTitlesClient;
+    private readonly TmdbTranslationsClient _tmdbTranslationsClient;
     private readonly ILogger _logger;
 
     /// <summary>
@@ -86,7 +87,7 @@ public class MissingMetadataMatcher
         _providerManager = providerManager;
         _libraryManager = libraryManager;
         _directoryService = directoryService;
-        _tmdbAlternativeTitlesClient = new TmdbAlternativeTitlesClient(httpClientFactory, logger);
+        _tmdbTranslationsClient = new TmdbTranslationsClient(httpClientFactory, logger);
         _logger = logger;
     }
 
@@ -102,7 +103,7 @@ public class MissingMetadataMatcher
     /// <param name="candidateYear">This plugin's own resolved year, if any.</param>
     /// <param name="localPath">Path to the local video file, for the ffprobe runtime cross-check.</param>
     /// <param name="ffprobePath">Path to Jellyfin's own ffprobe binary, or null if unavailable.</param>
-    /// <param name="tmdbApiKey">A user-supplied TMDb credential (API Read Access Token or API Key) for alternate-title lookups, or empty to skip them.</param>
+    /// <param name="tmdbApiKey">A user-supplied TMDb credential (API Read Access Token or API Key) for localized-title lookups, or empty to skip them.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>Whether a match was found and applied (Jellyfin's own metadata refresh already ran).</returns>
     public async Task<bool> TryMatchMovieAsync(
@@ -331,13 +332,13 @@ public class MissingMetadataMatcher
         {
             await _providerManager.RefreshSingleItem(movie, refreshOptions, cancellationToken).ConfigureAwait(false);
             _logger.LogInformation(
-                "  > Applied metadata match: {Title} -> {MatchName} ({Year}, via {Provider}, {Similarity:P0} title similarity{AltTitle}) - accepted on {AcceptedVia}.",
+                "  > Applied metadata match: {Title} -> {MatchName} ({Year}, via {Provider}, {Similarity:P0} title similarity{LocalizedTitle}) - accepted on {AcceptedVia}.",
                 candidateTitle,
                 best.Value.Result.Name,
                 best.Value.Result.ProductionYear?.ToString(CultureInfo.InvariantCulture) ?? "unknown year",
                 best.Value.Result.SearchProviderName,
                 best.Value.Similarity,
-                best.Value.MatchedTitle is null ? string.Empty : $", via alternate title {best.Value.MatchedTitle}",
+                best.Value.MatchedTitle is null ? string.Empty : $", via localized title {best.Value.MatchedTitle}",
                 acceptedVia);
             return true;
         }
@@ -349,15 +350,16 @@ public class MissingMetadataMatcher
     }
 
     /// <summary>
-    /// Re-scores every pooled candidate that has a TMDb id against its own alternate
-    /// titles, preferring one tagged with the item's own resolved metadata country
-    /// (the same <see cref="MediaBrowser.Controller.Entities.BaseItem.GetPreferredMetadataCountryCode"/>
+    /// Re-scores every pooled candidate that has a TMDb id against its own localized
+    /// titles (<see cref="TmdbTranslationsClient"/>), preferring the one tagged with
+    /// the item's own resolved preferred metadata language - the same
+    /// <see cref="MediaBrowser.Controller.Entities.BaseItem.GetPreferredMetadataLanguage"/>
     /// resolution already used for trailer-language preference elsewhere in this
-    /// plugin - alternate titles are just another facette of the same "prefer this
-    /// item's own language/region" idea) and falling back to whichever alternate
-    /// title scores best otherwise. Only ever called once the candidate's primary
-    /// title has already failed to find anything, to keep the extra API calls to a
-    /// minimum.
+    /// plugin, just another facette of the same "prefer this item's own language"
+    /// idea - and falling back to whichever localized title scores best otherwise
+    /// (including when no language preference is configured at all). Only ever called
+    /// once the candidate's primary title has already failed to find anything, to
+    /// keep the extra API calls to a minimum.
     /// </summary>
     private async Task<List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>> RescueViaAlternateTitlesAsync(
         Movie movie,
@@ -366,6 +368,11 @@ public class MissingMetadataMatcher
         string tmdbApiKey,
         CancellationToken cancellationToken)
     {
+        // Only the primary language subtag matters here - GetPreferredMetadataLanguage
+        // can return a full tag like "de-DE", but TMDb's translations are keyed by the
+        // bare ISO 639-1 code ("de") alone (see TrailerLanguages.GetNativeTrailerWords
+        // for the same normalization, used for the same underlying preference).
+        var preferredLanguage = movie.GetPreferredMetadataLanguage()?.Split('-', 2)[0];
         var preferredCountry = movie.GetPreferredMetadataCountryCode();
         var rescored = new List<(RemoteSearchResult Result, double Similarity, string? MatchedTitle)>();
 
@@ -376,31 +383,52 @@ public class MissingMetadataMatcher
                 continue;
             }
 
-            var altTitles = await _tmdbAlternativeTitlesClient.GetAlternativeTitlesAsync(tmdbApiKey, tmdbId, cancellationToken).ConfigureAwait(false);
-            if (altTitles.Count == 0)
+            var translations = await _tmdbTranslationsClient.GetTranslatedTitlesAsync(tmdbApiKey, tmdbId, cancellationToken).ConfigureAwait(false);
+            if (translations.Count == 0)
             {
+                // Logged rather than silently skipped - otherwise a candidate with
+                // genuinely no localized titles at all is indistinguishable from one
+                // this whole rescue attempt never got to check, which made an earlier
+                // version of this bug (a bad auth header) look like "nothing found"
+                // instead of the request outright failing.
+                _logger.LogInformation("  > {MatchName} (id {TmdbId}) has no TMDb translations to check.", candidate.Name, tmdbId);
                 continue;
             }
 
-            var byPreferredCountry = !string.IsNullOrEmpty(preferredCountry)
-                ? altTitles.Where(t => string.Equals(t.CountryCode, preferredCountry, StringComparison.OrdinalIgnoreCase)).ToList()
-                : new List<(string CountryCode, string Title)>();
-            var titlesToScore = byPreferredCountry.Count > 0 ? byPreferredCountry : altTitles;
+            var byPreferredLanguage = !string.IsNullOrEmpty(preferredLanguage)
+                ? translations.Where(t => string.Equals(t.LanguageCode, preferredLanguage, StringComparison.OrdinalIgnoreCase)).ToList()
+                : new List<(string LanguageCode, string CountryCode, string Title)>();
 
-            var bestAlt = titlesToScore
+            // Multiple entries can share a language across different countries (e.g.
+            // "de" for both Germany and Austria/Switzerland) - prefer the one that
+            // also matches the item's own resolved country when there's a choice.
+            var titlesToScore = byPreferredLanguage.Count > 1 && !string.IsNullOrEmpty(preferredCountry)
+                ? byPreferredLanguage.Where(t => string.Equals(t.CountryCode, preferredCountry, StringComparison.OrdinalIgnoreCase)).DefaultIfEmpty(byPreferredLanguage[0]).ToList()
+                : (byPreferredLanguage.Count > 0 ? byPreferredLanguage : translations);
+
+            var bestTranslation = titlesToScore
                 .Select(t => (Title: t.Title, Similarity: Levenshtein.TitleSimilarity(candidateTitle, t.Title)))
                 .OrderByDescending(t => t.Similarity)
                 .First();
 
-            if (bestAlt.Similarity >= TitleSimilarityThreshold)
+            if (bestTranslation.Similarity >= TitleSimilarityThreshold)
             {
                 _logger.LogInformation(
-                    "  > {Title} matched {MatchName} via its alternate title \"{AltTitle}\" ({Similarity:P0} similar) - its primary title did not.",
+                    "  > {Title} matched {MatchName} via its localized title \"{TranslatedTitle}\" ({Similarity:P0} similar) - its primary title did not.",
                     candidateTitle,
                     candidate.Name,
-                    bestAlt.Title,
-                    bestAlt.Similarity);
-                rescored.Add((candidate, bestAlt.Similarity, bestAlt.Title));
+                    bestTranslation.Title,
+                    bestTranslation.Similarity);
+                rescored.Add((candidate, bestTranslation.Similarity, bestTranslation.Title));
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "  > {MatchName}'s closest localized title to {Title} was \"{TranslatedTitle}\" ({Similarity:P0} similar) - still below threshold.",
+                    candidate.Name,
+                    candidateTitle,
+                    bestTranslation.Title,
+                    bestTranslation.Similarity);
             }
         }
 
