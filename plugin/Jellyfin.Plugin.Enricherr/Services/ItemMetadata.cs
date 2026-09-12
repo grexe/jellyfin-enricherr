@@ -26,7 +26,18 @@ public static class ItemMetadata
     /// movie correctly named "Chang An (2023).mkv" on disk should not get treated as a
     /// 2012 film just because Jellyfin matched it to a same-named 2012 film's metadata.
     /// </summary>
-    public static string? ResolveYear(BaseItem item, string localPath)
+    /// <param name="item">The item to resolve a year for.</param>
+    /// <param name="localPath">Path to the item's local file/folder, for its embedded year.</param>
+    /// <param name="trustMetadata">
+    /// When true, always prefers the metadata year over a disagreeing file-embedded
+    /// one, instead of the other way around. Only meant for re-resolving right after
+    /// <see cref="MissingMetadataMatcher"/> has just confidently applied a match this
+    /// same run - confirmed live that without this, a file embedding an unrelated
+    /// archival/broadcast date (not its real release year) always won out over the
+    /// freshly-matched, actually-correct year, silently undoing the very match this
+    /// plugin just made and feeding a wrong-year trailer search query.
+    /// </param>
+    public static string? ResolveYear(BaseItem item, string localPath, bool trustMetadata = false)
     {
         var fileStem = localPath.Length > 0 ? Path.GetFileNameWithoutExtension(localPath) : string.Empty;
         var (_, fileYear) = TitleMatching.CleanMediaTitle(fileStem);
@@ -37,7 +48,7 @@ public static class ItemMetadata
             metadataYear = item.PremiereDate.Value.Year.ToString();
         }
 
-        if (!string.IsNullOrEmpty(fileYear) && !string.IsNullOrEmpty(metadataYear) && fileYear != metadataYear)
+        if (!trustMetadata && !string.IsNullOrEmpty(fileYear) && !string.IsNullOrEmpty(metadataYear) && fileYear != metadataYear)
         {
             return fileYear;
         }
@@ -60,7 +71,21 @@ public static class ItemMetadata
     /// Determine the preferred title for naming/renaming (honoring Latin locale over
     /// CJK/non-Latin) and collect all title variants for search and trailer filtering.
     /// </summary>
-    public static (string PreferredTitle, List<string> TitleVariants) ResolveTitles(BaseItem item, string localPath)
+    /// <param name="item">The item to resolve a title for.</param>
+    /// <param name="localPath">Path to the item's local file/folder, for its filename-derived title.</param>
+    /// <param name="trustMetadata">
+    /// When true, skips <see cref="TitleMatching.PreferFilenameOverMetadata"/> entirely
+    /// and always trusts <paramref name="item"/>'s own Name/OriginalTitle. Only meant
+    /// for re-resolving right after <see cref="MissingMetadataMatcher"/> has just
+    /// confidently applied a match this same run: that heuristic exists to catch
+    /// Jellyfin's own automatic matching going wrong (a new Name sharing little
+    /// vocabulary with the filename), but this plugin's own localized-title matching
+    /// deliberately produces exactly that shape of result on purpose (a German
+    /// filename correctly matched to its French/English TMDb title) - confirmed live,
+    /// without this the heuristic silently reverted the title right back to the raw,
+    /// unmatched filename immediately after a confident match was just applied.
+    /// </param>
+    public static (string PreferredTitle, List<string> TitleVariants) ResolveTitles(BaseItem item, string localPath, bool trustMetadata = false)
     {
         var rawName = string.IsNullOrEmpty(item.Name) ? "Unknown" : item.Name;
         var originalTitle = item.OriginalTitle ?? string.Empty;
@@ -77,7 +102,7 @@ public static class ItemMetadata
         // Jellyfin's "Name" metadata can be wrong in a way that no amount of noise-
         // stripping fixes (a bad provider match) - trust the filename instead when it
         // looks untrustworthy. See TitleMatching.PreferFilenameOverMetadata.
-        var distrustMetadata = TitleMatching.PreferFilenameOverMetadata(nameCand, stemCand);
+        var distrustMetadata = !trustMetadata && TitleMatching.PreferFilenameOverMetadata(nameCand, stemCand);
         if (distrustMetadata)
         {
             nameCand = stemCand;

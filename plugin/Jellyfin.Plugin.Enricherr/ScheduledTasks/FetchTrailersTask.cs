@@ -583,8 +583,16 @@ public class FetchTrailersTask : IScheduledTask
             var matched = await _missingMetadataMatcher.TryMatchMovieAsync(movie, preferredTitle, year, localPath, ffprobePath, config.TmdbApiKey, cancellationToken).ConfigureAwait(false);
             if (matched)
             {
-                (preferredTitle, titleVariants) = ItemMetadata.ResolveTitles(movie, localPath);
-                year = ItemMetadata.ResolveYear(movie, localPath);
+                // trustMetadata: true - this plugin just independently verified this
+                // match itself (title similarity, plus a runtime or year cross-check),
+                // so the usual "does the new Name look like a bad automatic match"
+                // heuristic (ItemMetadata's normal behavior, meant to catch exactly
+                // that happening on its own) must be skipped here - it otherwise
+                // silently reverts the title right back to the raw, unmatched filename
+                // whenever the correct title looks very different from it, which is
+                // precisely what a foreign-language rescue match looks like by design.
+                (preferredTitle, titleVariants) = ItemMetadata.ResolveTitles(movie, localPath, trustMetadata: true);
+                year = ItemMetadata.ResolveYear(movie, localPath, trustMetadata: true);
             }
         }
 
