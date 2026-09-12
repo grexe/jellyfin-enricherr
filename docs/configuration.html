@@ -34,12 +34,14 @@
 
   <div class="setting-group">
     <h3>Statistics</h3>
+    <img class="screenshot inline" src="assets/screenshots/stats-current-run.png" alt="Statistics table on the Current run tab, showing a live-updating spinner and per-library progress while a run is in progress">
     <img class="screenshot inline" src="assets/screenshots/stats-overall.png" alt="Statistics table on the Overall tab, showing coverage bars per library">
     <p>Not a setting — a table with three tabs:</p>
     <table>
       <tr><th>Current run</th><td>Shown only while a run is actively in progress - a live-updating view
         (refreshed every few seconds), one row per library in scope for the run (not just the one currently
-        being processed), with coverage numbers building up in real time. A library not reached yet shows
+        being processed), with coverage numbers building up in real time and a spinner marking whichever
+        library is currently being processed. A library not reached yet shows
         "n/a" rather than a bare 0, so the full scope of the run is visible from the start instead of
         libraries only appearing as the run reaches them. No need to wait for the run to finish or dig
         through the log to see progress. Shows "No run currently in progress" the rest of the time.</td></tr>
@@ -132,7 +134,7 @@
 
   <div class="setting-group">
     <h3>Organisation</h3>
-    <img class="screenshot inline" src="assets/screenshots/settings-organisation.png" alt="Organisation settings group">
+    <img class="screenshot inline" src="assets/screenshots/settings-organisation.png" alt="Organisation settings group, including the Search for missing movie metadata checkbox and TMDb API Read Access Token field">
 
     <div class="setting">
       <span class="name">Rename original movie files</span><span class="default">default: off</span>
