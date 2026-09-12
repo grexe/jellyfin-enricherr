@@ -43,14 +43,21 @@ public static class VideoProbe
             using var process = Process.Start(psi);
             if (process is null)
             {
+                logger.LogWarning("  > Could not determine resolution of {Path}: ffprobe process failed to start.", filePath);
                 return null;
             }
 
             var stdout = await process.StandardOutput.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+            var stderr = await process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
             if (process.ExitCode != 0)
             {
+                logger.LogWarning(
+                    "  > Could not determine resolution of {Path}: ffprobe exited with code {ExitCode}: {Error}",
+                    filePath,
+                    process.ExitCode,
+                    string.IsNullOrWhiteSpace(stderr) ? "(no error output)" : stderr.Trim());
                 return null;
             }
 
@@ -62,6 +69,7 @@ public static class VideoProbe
                 return height.GetInt32();
             }
 
+            logger.LogWarning("  > Could not determine resolution of {Path}: ffprobe returned no video stream/height ({Output}).", filePath, stdout.Trim());
             return null;
         }
         catch (Exception ex)
@@ -105,14 +113,21 @@ public static class VideoProbe
             using var process = Process.Start(psi);
             if (process is null)
             {
+                logger.LogWarning("  > Could not determine duration of {Path}: ffprobe process failed to start.", filePath);
                 return null;
             }
 
             var stdout = await process.StandardOutput.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+            var stderr = await process.StandardError.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
             await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
             if (process.ExitCode != 0)
             {
+                logger.LogWarning(
+                    "  > Could not determine duration of {Path}: ffprobe exited with code {ExitCode}: {Error}",
+                    filePath,
+                    process.ExitCode,
+                    string.IsNullOrWhiteSpace(stderr) ? "(no error output)" : stderr.Trim());
                 return null;
             }
 
@@ -124,6 +139,7 @@ public static class VideoProbe
                 return seconds;
             }
 
+            logger.LogWarning("  > Could not determine duration of {Path}: ffprobe returned no duration ({Output}).", filePath, stdout.Trim());
             return null;
         }
         catch (Exception ex)

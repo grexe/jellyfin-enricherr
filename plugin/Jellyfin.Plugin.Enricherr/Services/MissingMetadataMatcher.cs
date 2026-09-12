@@ -40,7 +40,11 @@ namespace Jellyfin.Plugin.Enricherr.Services;
 /// Deliberately conservative regardless: (1) only ever touches an item with an EMPTY
 /// ProviderIds - never second-guesses a match Jellyfin already made, right or wrong;
 /// (2) always requires a strict title similarity match (primary or localized title)
-/// against the search candidate; (3) requires either the candidate's own claimed
+/// against the search candidate; (3) an exact (1.0-scored) title match is accepted on
+/// that alone - confirmed live that requiring corroboration on top of it only produces
+/// false negatives, since a title match this specific is already strong enough
+/// evidence, and a runtime/year cross-check isn't always even available; (4) anything
+/// short of an exact match additionally requires either the candidate's own claimed
 /// runtime (fetched from its provider directly, never by speculatively applying it to
 /// the real Jellyfin item first) to agree with this plugin's own ffprobe of the local
 /// file within a tight tolerance, or - only when a runtime comparison isn't possible
@@ -51,6 +55,17 @@ namespace Jellyfin.Plugin.Enricherr.Services;
 public class MissingMetadataMatcher
 {
     private const double TitleSimilarityThreshold = 0.9;
+
+    // Levenshtein.TitleSimilarity returns the literal double 1.0 for both a true
+    // exact (case-insensitive) match and its word-boundary-prefix case - never a
+    // near-1.0 value from floating-point rounding - so this equality check is exact,
+    // not an approximation. A candidate this specific is strong enough evidence on
+    // its own: confirmed live, requiring duration/year corroboration on top of a
+    // literal 100% title hit only produced a false negative (a candidate's provider
+    // entry can simply have no RunTimeTicks recorded, and its own claimed release
+    // year can be an unrelated archival/broadcast date - neither is a reason to
+    // doubt a title match this exact).
+    private const double ExactTitleSimilarity = 1.0;
     private const int YearToleranceYears = 1;
     private const double RuntimeToleranceMinutes = 1.0;
 
@@ -252,7 +267,11 @@ public class MissingMetadataMatcher
         }
 
         double? localDurationSeconds = null;
-        if (!string.IsNullOrEmpty(ffprobePath))
+        if (string.IsNullOrEmpty(ffprobePath))
+        {
+            _logger.LogInformation("  > No ffprobe path available - duration can't be cross-checked for {Title}, falling back to year alone.", candidateTitle);
+        }
+        else
         {
             localDurationSeconds = await VideoProbe.GetDurationSecondsAsync(ffprobePath, localPath, _logger, cancellationToken).ConfigureAwait(false);
         }
@@ -261,6 +280,13 @@ public class MissingMetadataMatcher
         string? acceptedVia = null;
         foreach (var candidate in candidatesForSelection)
         {
+            if (candidate.Similarity >= ExactTitleSimilarity)
+            {
+                best = candidate;
+                acceptedVia = "an exact title match";
+                break;
+            }
+
             double? candidateRuntimeMinutes = localDurationSeconds is not null
                 ? await GetCandidateRuntimeMinutesAsync(movie, candidate.Result, cancellationToken).ConfigureAwait(false)
                 : null;
@@ -434,6 +460,7 @@ public class MissingMetadataMatcher
     {
         if (string.IsNullOrEmpty(candidate.SearchProviderName))
         {
+            _logger.LogInformation("  > {Name} has no SearchProviderName - can't fetch its runtime for cross-checking.", candidate.Name);
             return null;
         }
 
@@ -444,6 +471,7 @@ public class MissingMetadataMatcher
 
         if (provider is null)
         {
+            _logger.LogInformation("  > No active metadata provider named {Provider} to fetch {Name}'s runtime from - is it still enabled for this library?", candidate.SearchProviderName, candidate.Name);
             return null;
         }
 
@@ -459,6 +487,7 @@ public class MissingMetadataMatcher
             var result = await provider.GetMetadata(lookupInfo, cancellationToken).ConfigureAwait(false);
             if (!result.HasMetadata || result.Item is null || result.Item.RunTimeTicks is null)
             {
+                _logger.LogInformation("  > {Provider} returned no runtime for {Name} - can't cross-check it against the local file.", candidate.SearchProviderName, candidate.Name);
                 return null;
             }
 
