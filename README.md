@@ -45,14 +45,27 @@ from this repository; this section stays as a record of where the plugin came fr
   season subfolders to Jellyfin's canonical `Season NN` naming, fixing a messy release-style folder name (tags,
   resolution, season ranges, ...) that confuses Jellyfin's own poster match and displayed title even when trailer
   search itself already works fine. Episode files are never touched.
+- **Loose subtitle renaming** - detects a release-named subtitle file sitting directly in a movie's own folder
+  (rather than matching the movie's own filename) and renames it to match, so Jellyfin recognizes it as an
+  external subtitle.
+- **Missing-metadata rescue** - for a movie Jellyfin has no metadata match for at all (an oddly-named release that
+  defeats Jellyfin's own matching even though the real title is findable once release noise is stripped),
+  searches using this plugin's own cleaned-up title and applies a match, but only when it's confident - checked
+  against the candidate's title, its actual runtime via `ffprobe`, and its year, optionally cross-checked against
+  TMDb's own localized titles too.
 - **Theme songs** - optionally fetches a local `theme.mp3` too, looked up on
   [ThemerrDB](https://github.com/LizardByte/ThemerrDB) (the same curated database the
   [Themerr-jellyfin](https://github.com/LizardByte/Themerr-jellyfin) plugin uses) and downloaded through this
   plugin's own hardened `yt-dlp` pipeline instead of Themerr's less reliable downloader.
+- **Runs on its own schedule, or the moment a new item is added** - in addition to a manual run or its own
+  schedule, can optionally trigger a run as soon as a newly added movie/series' own metadata refresh finishes,
+  debounced so a bulk import triggers one run, not one per item.
 - **Cookies support** for authenticated/age-restricted YouTube access.
 - **Dry-run mode** to preview a run without downloading, renaming, or moving anything.
-- **Per-run summary** on the settings page - what was found, downloaded, skipped, or upgraded, and why a run
-  stopped early if it did.
+- **Live statistics and per-run summary** on the settings page - live per-library progress while a run is going,
+  overall coverage, and the last completed run's own numbers and stop reason.
+- **Debug picker** - a file/folder browser on the settings page to run this plugin's own processing against just
+  one movie, without waiting on or otherwise affecting a full scan.
 
 ## Requirements
 
@@ -75,16 +88,18 @@ from this repository; this section stays as a record of where the plugin came fr
 
 Settings are grouped on the plugin's page:
 
-- **Scanning** - which libraries to scan, whether to trigger a Jellyfin library scan after changes, and the
-  maximum trailer duration to accept.
+- **Scanning** - whether to trigger a Jellyfin library scan after changes or automatically when a new movie/series
+  is added, the maximum trailer duration to accept, and which libraries to scan.
 - **Audio/Video** - the minimum acceptable trailer resolution and audio-language preference, honored on every
   search, plus whether to also re-check/upgrade existing trailers that fall short.
-- **Organisation** - renaming the original movie file, migrating movies into their own folder, and cleaning up
-  series/season folder names.
+- **Organisation** - renaming the original movie file, migrating movies into their own folder, renaming loose
+  subtitle files, cleaning up series/season folder names, and the missing-metadata rescue search (with an
+  optional TMDb credential for localized-title matching).
 - **Theme Songs** - whether to also fetch a local theme song via ThemerrDB.
 - **Network** - a cookies file for authenticated/age-restricted access, pacing between requests, and the
   rate-limit retry behavior.
-- **Debugging and Testing** - dry-run mode and verbose per-candidate logging.
+- **Debugging and Testing** - dry-run mode, verbose per-candidate logging, and a file/folder browser to run
+  against a single movie.
 
 See the [full configuration reference](https://kino.sen-labs.org/configuration.html) for
 what every setting does, and the [documentation](https://kino.sen-labs.org/) generally for

@@ -67,6 +67,7 @@
 
   <div class="setting-group">
     <h3>Scanning</h3>
+    <img class="screenshot inline" src="assets/screenshots/settings-scanning.png" alt="Scanning settings group, with library-independent settings first and Libraries to scan as a nested sub-group below">
 
     <div class="setting">
       <span class="name">Trigger a library scan after changes</span><span class="default">default: on</span>
@@ -83,7 +84,10 @@
         added to the library — waiting for that item's own metadata refresh to actually finish first, not
         just the moment it's first discovered on disk (before its title/year/provider ids are resolved).
         Several items added in a burst (e.g. a bulk import) are debounced into a single run, not one run per
-        item.
+        item. Only reacts to items genuinely new to Jellyfin — a routine periodic refresh of something
+        already in the library is deliberately ignored, so it never causes a run all on its own. Turn on
+        "Verbose logging" below to see exactly when this is watching a new item and when it triggers (or
+        skips triggering because a run is already in progress).
       </p>
     </div>
 
@@ -332,7 +336,7 @@
 
   <div class="setting-group">
     <h3>Debugging and Testing</h3>
-    <img class="screenshot inline" src="assets/screenshots/settings-debugging.png" alt="Debugging and Testing settings group">
+    <img class="screenshot inline" src="assets/screenshots/settings-debugging.png" alt="Debugging and Testing settings group, showing the single-file browser with its Run for selected item and Run for this folder buttons">
 
     <div class="setting">
       <span class="name">Dry run</span><span class="default">default: off</span>
@@ -356,13 +360,17 @@
       <span class="name">Run against a single file</span><span class="default">not a setting</span>
       <p>
         A small file browser, scoped to your configured libraries' own root folders — never the server's
-        whole filesystem. Browse to one movie file and run this plugin's own processing against just that
-        item: title resolution, missing-metadata search (if enabled), trailer/theme song fetch, and rename/
-        migrate. Or click "Run for this folder" to run against whichever folder you're currently browsing —
-        it resolves to the one video file inside it automatically, which is what you want to test something
-        like loose-subtitle renaming. Useful for seeing exactly how a specific file is handled without
-        waiting on, or otherwise affecting, a full scan. This is a real run, not a dry run, unless "Dry run"
-        above is also checked.
+        whole filesystem. Clicking a movie file selects it, enabling "Run for selected item" to run this
+        plugin's own processing against just that item: title resolution, missing-metadata search (if
+        enabled), trailer/theme song fetch, and rename/migrate. Browsing into a folder selects that folder
+        instead, enabling "Run for this folder" — it resolves to the one video file inside automatically,
+        which is what you want to test something like loose-subtitle renaming (only relevant once a movie
+        already has its own dedicated folder). Only one of the two is ever selected at a time: picking a file
+        clears a folder selection and vice versa, so a button is only ever enabled while its own kind of
+        selection is the current one — never left over from a folder you've since navigated away from. The
+        result reports things like how many loose subtitles were renamed, alongside the trailer/theme song
+        outcome. Useful for seeing exactly how a specific file is handled without waiting on, or otherwise
+        affecting, a full scan. This is a real run, not a dry run, unless "Dry run" above is also checked.
       </p>
     </div>
   </div>
