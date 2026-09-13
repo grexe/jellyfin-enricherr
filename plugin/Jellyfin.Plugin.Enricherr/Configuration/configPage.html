@@ -1101,12 +1101,17 @@
                 // visibly "not started" rather than indistinguishable from a genuine
                 // zero. renderStatsTable already treats any non-number cell value as
                 // plain text (no coverage bar), which "n/a" falls into naturally.
+                // Confirmed live: Jellyfin's own JSON serialization for this endpoint
+                // omits a null property entirely rather than sending it as JSON null,
+                // so the field comes back `undefined` here, not `null` - loose `==`
+                // catches both instead of leaking the literal word "undefined" into the
+                // table.
                 statsData.current = liveProgress.libraries.map(function (lib) {
                     return {
                         name: lib.name,
                         items: lib.items,
-                        trailers: lib.trailers === null ? 'n/a' : lib.trailers,
-                        themeSongs: lib.themeSongs === null ? 'n/a' : lib.themeSongs,
+                        trailers: lib.trailers == null ? 'n/a' : lib.trailers,
+                        themeSongs: lib.themeSongs == null ? 'n/a' : lib.themeSongs,
                         inProgress: lib.name === liveProgress.currentLibrary
                     };
                 });

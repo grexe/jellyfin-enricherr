@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.2.2",
+        "changelog": "The \"Current run\" statistics tab showed the literal word \"undefined\" instead of \"n/a\" for a library the run hadn't reached yet, contradicting its own documented behavior - Jellyfin's own JSON serialization omits a null field entirely rather than sending it as JSON null, so the check in the settings page's own JavaScript (looking only for an explicit null) missed it. Fixed to treat a missing field the same as an explicit null.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.2.2.zip",
+        "checksum": "a5093b594705c2e03d627a846e916080",
+        "timestamp": "2026-09-13T23:42:48Z"
+      },
+      {
         "version": "1.7.2.1",
         "changelog": "\"Run automatically when a new movie or series is added\" had zero log visibility into whether it was even seeing Jellyfin's ItemAdded/RefreshCompleted events for a given item - confirmed live, where a movie's metadata refresh completed (and a separate Jellyfin trickplay-generation task for it finished successfully afterwards) but nothing indicated whether this plugin's own watcher had reacted at all, making a genuine miss impossible to tell apart from \"this wasn't actually a newly-added item to begin with\" (an existing library item just being routinely re-refreshed is deliberately ignored by design). With \"Verbose logging\" on, the watcher now logs when it starts tracking a newly added item, and when a completed refresh doesn't match anything it's tracking (so it's clear whether that's expected or not) - no behavior change otherwise.",
         "targetAbi": "10.11.0.0",
