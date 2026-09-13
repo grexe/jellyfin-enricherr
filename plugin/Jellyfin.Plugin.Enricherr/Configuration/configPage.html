@@ -43,10 +43,6 @@
                     <div class="verticalSection">
                         <h3 style="font-size: 1.2em; font-weight: 700; margin: 1.75em 0 0.75em; padding-bottom: 0.35em; border-bottom: 1px solid rgba(128, 128, 128, 0.35);">Scanning</h3>
                         <div style="padding-left: 1.25em;">
-                            <h3 class="checkboxListLabel">Libraries</h3>
-                            <div id="LibrariesList" class="checkboxList">Loading libraries&hellip;</div>
-                            <div class="fieldDescription settingHelp">Leave all unchecked to scan every library. Applies to both movies and TV series - only libraries actually containing them are useful here. Renaming and folder migration below only apply to movies; a TV series always already has its own folder.</div>
-
                             <div class="checkboxContainer checkboxContainer-withDescription">
                                 <label class="emby-checkbox-label">
                                     <input id="TriggerLibraryScan" name="TriggerLibraryScan" type="checkbox" is="emby-checkbox" />
@@ -73,6 +69,12 @@
                                 <label class="inputLabel inputLabelUnfocused" for="MaxTrailerDurationSeconds">Maximum trailer duration (seconds)</label>
                                 <input id="MaxTrailerDurationSeconds" name="MaxTrailerDurationSeconds" type="number" is="emby-input" min="30" value="300" />
                                 <div class="fieldDescription settingHelp">Search results longer than this are assumed to be a full movie or unrelated video, not a trailer.</div>
+                            </div>
+
+                            <div style="margin-top: 1.75em;">
+                                <h3 class="checkboxListLabel">Libraries to scan</h3>
+                                <div id="LibrariesList" class="checkboxList">Loading libraries&hellip;</div>
+                                <div class="fieldDescription settingHelp">Leave all unchecked to scan every library. Applies to both movies and TV series - only libraries actually containing them are useful here. These settings above apply the same way regardless of which libraries are picked; renaming and folder migration further below only apply to movies - a TV series always already has its own folder.</div>
                             </div>
                         </div>
                     </div>
@@ -377,15 +379,20 @@
                                     run" above is also checked.
                                 </div>
                                 <div id="DebugFileBrowserPath" class="fieldDescription" style="margin-top: 0.6em; word-break: break-all; min-height: 1.2em;"></div>
-                                <button is="emby-button" type="button" id="DebugFileBrowserUpButton" class="raised button-cancel emby-button" style="display:none; margin-bottom: 0.5em;">
-                                    <span>&#8593; Up</span>
-                                </button>
+                                <div style="display: flex; gap: 0.5em; margin-bottom: 0.5em; flex-wrap: wrap;">
+                                    <button is="emby-button" type="button" id="DebugFileBrowserUpButton" class="raised button-cancel emby-button" style="display:none;">
+                                        <span>&#8593; Up</span>
+                                    </button>
+                                    <button is="emby-button" type="button" id="DebugUseCurrentFolderButton" class="raised button-cancel emby-button" style="display:none;" title="Select this folder itself as the run target, instead of a video file inside it - e.g. to test loose-subtitle renaming.">
+                                        <span>Use this folder</span>
+                                    </button>
+                                </div>
                                 <div id="DebugFileBrowserList" style="max-height: 260px; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 4px; padding: 0.25em 0;">
                                     Loading&hellip;
                                 </div>
                                 <div style="margin-top: 0.75em; display: flex; align-items: center; gap: 0.75em; flex-wrap: wrap;">
                                     <button is="emby-button" type="button" id="DebugRunSelectedButton" class="raised button-submit emby-button" disabled>
-                                        <span>Run for selected file</span>
+                                        <span>Run for selected item</span>
                                     </button>
                                     <span id="DebugSelectedFileName" class="fieldDescription" style="margin: 0;"></span>
                                 </div>
@@ -497,20 +504,22 @@
                 return phaseStarted === false ? 'n/a' : count;
             }
 
-            // Builds the "Last run" tab's Movies/TV series rows (same shape as the
-            // "Overall" tab's per-library rows, so switching tabs compares like with
-            // like) from anything shaped like a RunSummary or LiveProgress - both
-            // carry the same totalMovies/alreadyHadTrailer/downloaded/... fields, so
-            // a live in-progress snapshot renders through the exact same code path as
-            // a completed run's summary.
+            // Builds the "Last run" tab's Movies/TV series rows from a RunSummary.
+            // Deliberately a DELTA, not a coverage total - "Trailers"/"Theme songs"
+            // here are what THIS run itself found/downloaded/upgraded, not how many
+            // of the library's items have one right now (that's what "Overall" - and
+            // "Current run", building up toward the same idea live - already show).
+            // Downloaded + upgraded both count as a "find" for trailers - either one
+            // is a real file this run itself produced; there's no theme song
+            // equivalent of "upgraded".
             function buildStatsRows(summaryLike) {
                 var rows = [];
                 if (summaryLike.totalMovies > 0) {
                     rows.push({
                         name: 'Movies',
                         items: summaryLike.totalMovies,
-                        trailers: fmtCount(summaryLike.moviesScanStarted, summaryLike.alreadyHadTrailer + summaryLike.downloaded),
-                        themeSongs: fmtCount(summaryLike.moviesScanStarted, summaryLike.themeSongAlreadyHad + summaryLike.themeSongDownloaded)
+                        trailers: fmtCount(summaryLike.moviesScanStarted, summaryLike.downloaded + (summaryLike.upgraded || 0)),
+                        themeSongs: fmtCount(summaryLike.moviesScanStarted, summaryLike.themeSongDownloaded)
                     });
                 }
 
@@ -518,8 +527,8 @@
                     rows.push({
                         name: 'TV series',
                         items: summaryLike.totalSeries,
-                        trailers: fmtCount(summaryLike.seriesScanStarted, summaryLike.seriesAlreadyHadTrailer + summaryLike.seriesDownloaded),
-                        themeSongs: fmtCount(summaryLike.seriesScanStarted, summaryLike.seriesThemeSongAlreadyHad + summaryLike.seriesThemeSongDownloaded)
+                        trailers: fmtCount(summaryLike.seriesScanStarted, summaryLike.seriesDownloaded + (summaryLike.seriesUpgraded || 0)),
+                        themeSongs: fmtCount(summaryLike.seriesScanStarted, summaryLike.seriesThemeSongDownloaded)
                     });
                 }
 
@@ -553,7 +562,7 @@
             // both Statistics tabs - "Last run" (Movies/TV series, from the last run's
             // own numbers) and "Overall" (one row per actual Jellyfin library, always
             // every library regardless of current scan scope).
-            function renderStatsTable(rows) {
+            function renderStatsTable(rows, showCoverageBars) {
                 var container = document.querySelector('#StatsTableContainer');
                 container.innerHTML = '';
 
@@ -576,7 +585,8 @@
 
                 var thead = document.createElement('thead');
                 var headRow = document.createElement('tr');
-                ['Library', 'Items', 'Trailers', 'Theme songs'].forEach(function (text, i) {
+                var headings = showCoverageBars ? ['Library', 'Items', 'Trailers', 'Theme songs'] : ['Library', 'Items', 'Trailers found', 'Theme songs found'];
+                headings.forEach(function (text, i) {
                     var th = document.createElement('th');
                     th.textContent = text;
                     styleTableCell(th, { align: i === 0 ? 'left' : 'right', bold: true, thick: true });
@@ -628,11 +638,14 @@
                     // separate element, so it works as a plain cell background with no
                     // extra DOM/layout to keep in sync. "n/a" (a phase that never
                     // started this run - see fmt() above) isn't a real count, so no
-                    // bar/percentage for it, just the plain text.
+                    // bar/percentage for it, just the plain text - and showCoverageBars
+                    // is false for "Last run" specifically, whose numbers are a delta
+                    // (what this one run found) rather than a share of the library's
+                    // total items, so a percentage-of-total bar wouldn't mean anything.
                     [{ value: row.trailers, rgb: '76, 175, 80' }, { value: row.themeSongs, rgb: '66, 165, 245' }].forEach(function (col) {
                         var cell = document.createElement('td');
                         styleTableCell(cell, { align: 'right' });
-                        if (typeof col.value === 'number' && typeof row.items === 'number' && row.items > 0) {
+                        if (showCoverageBars && typeof col.value === 'number' && typeof row.items === 'number' && row.items > 0) {
                             var pct = Math.round((col.value / row.items) * 100);
                             cell.style.background = 'linear-gradient(to right, rgba(' + col.rgb + ', 0.3) ' + pct + '%, transparent ' + pct + '%)';
                             cell.textContent = col.value + ' (' + pct + '%)';
@@ -675,7 +688,7 @@
                     tableContainer.textContent =
                         tab === 'overall' ? 'Loading…' : (tab === 'current' ? 'No run currently in progress.' : 'No run yet.');
                 } else {
-                    renderStatsTable(rows);
+                    renderStatsTable(rows, tab !== 'lastRun');
                 }
             }
 
@@ -774,6 +787,7 @@
                 var pathEl = document.querySelector('#DebugFileBrowserPath');
                 var listEl = document.querySelector('#DebugFileBrowserList');
                 var upButton = document.querySelector('#DebugFileBrowserUpButton');
+                var useFolderButton = document.querySelector('#DebugUseCurrentFolderButton');
 
                 listEl.textContent = 'Loading…';
                 var url = ApiClient.serverAddress() + '/Enricherr/BrowseFileSystem' + (path ? '?path=' + encodeURIComponent(path) : '');
@@ -795,6 +809,16 @@
                     upButton.style.display = result.path ? '' : 'none';
                     upButton.onclick = function () {
                         loadDebugFileBrowser(result.parentPath);
+                    };
+
+                    // Selects the folder currently being browsed itself as the run
+                    // target, rather than a video file inside it - needed to test
+                    // something like loose-subtitle renaming, which only matters once
+                    // a movie already lives in its own dedicated folder (the server
+                    // resolves the one video file inside it on its own).
+                    useFolderButton.style.display = result.path ? '' : 'none';
+                    useFolderButton.onclick = function () {
+                        selectDebugFile({ path: result.path, name: result.path.split('/').pop() || result.path }, null);
                     };
 
                     listEl.innerHTML = '';
@@ -829,7 +853,7 @@
 
             function selectDebugFile(entry, rowEl) {
                 debugSelectedPath = entry.path;
-                document.querySelector('#DebugSelectedFileName').textContent = 'Selected: ' + entry.name;
+                document.querySelector('#DebugSelectedFileName').textContent = (rowEl ? 'Selected: ' : 'Selected folder: ') + entry.name;
                 document.querySelector('#DebugRunSelectedButton').disabled = false;
                 document.querySelector('#DebugRunResult').innerHTML = '';
 
@@ -879,7 +903,7 @@
                     // detail than "how much of my library is covered".
                     statsData.lastRun = buildStatsRows(summary);
                     if (activeStatsTab === 'lastRun') {
-                        renderStatsTable(statsData.lastRun);
+                        renderStatsTable(statsData.lastRun, false);
                     }
 
                     // Only the libraries actually in scope for this run get a section -
@@ -1015,7 +1039,7 @@
                 }).then(function (rows) {
                     statsData.overall = rows;
                     if (activeStatsTab === 'overall') {
-                        renderStatsTable(statsData.overall);
+                        renderStatsTable(statsData.overall, true);
                     }
                 }).catch(function (err) {
                     if (activeStatsTab === 'overall') {
@@ -1069,7 +1093,7 @@
                     };
                 });
                 if (activeStatsTab === 'current') {
-                    renderStatsTable(statsData.current);
+                    renderStatsTable(statsData.current, true);
                 }
             }
 

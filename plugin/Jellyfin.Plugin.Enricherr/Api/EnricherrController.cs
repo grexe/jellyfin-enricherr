@@ -273,11 +273,11 @@ public class EnricherrController : ControllerBase
 
     /// <summary>
     /// Runs this plugin's own per-movie processing (title resolution, missing-
-    /// metadata search if enabled, trailer/theme song fetch, rename/migrate) against
-    /// exactly one movie the debug file picker selected, without touching or waiting
-    /// on a full library scan.
+    /// metadata search if enabled, trailer/theme song fetch, rename/migrate/subtitle
+    /// rename) against exactly one movie the debug file picker selected, without
+    /// touching or waiting on a full library scan.
     /// </summary>
-    /// <param name="request">The movie file's full path.</param>
+    /// <param name="request">The movie file's full path, or its own dedicated folder's path.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>What happened for this one item.</returns>
     [HttpPost("RunSingleItem")]
@@ -288,7 +288,40 @@ public class EnricherrController : ControllerBase
             return BadRequest("No path provided.");
         }
 
-        var item = _libraryManager.FindByPath(request.Path, isFolder: false);
+        var filePath = request.Path;
+
+        // A folder was selected (e.g. to exercise RenameLooseSubtitles, which only
+        // matters once a movie already lives in its own dedicated folder) rather
+        // than the movie file itself - Jellyfin has no BaseItem for the folder
+        // itself in this layout (its Movie item's own Path is the video file), so
+        // resolve it ourselves: the one video file directly inside it, if there is
+        // exactly one.
+        if (Directory.Exists(filePath) && !System.IO.File.Exists(filePath))
+        {
+            List<string> videoFiles;
+            try
+            {
+                videoFiles = Directory.GetFiles(filePath).Where(MovieFileOperations.HasVideoExtension).ToList();
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Could not list folder: {e.Message}");
+            }
+
+            if (videoFiles.Count == 0)
+            {
+                return NotFound("No video file found directly in this folder.");
+            }
+
+            if (videoFiles.Count > 1)
+            {
+                return BadRequest("This folder has more than one video file - pick the specific file to run against instead.");
+            }
+
+            filePath = videoFiles[0];
+        }
+
+        var item = _libraryManager.FindByPath(filePath, isFolder: false);
         if (item is not Movie movie)
         {
             return NotFound("This isn't a movie Jellyfin knows about yet - scan the library first (Dashboard -> Libraries -> Scan), then try again.");

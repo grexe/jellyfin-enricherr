@@ -46,31 +46,27 @@
         libraries only appearing as the run reaches them. No need to wait for the run to finish or dig
         through the log to see progress. Shows "No run currently in progress" the rest of the time.</td></tr>
       <tr><th>Last run</th><td>Movies and TV series as two rows, from the last <em>completed</em> run's own
-        numbers - untouched by whatever a currently-in-progress run is doing. Shows the run's date, duration,
-        and how it ended, with a <strong>Details</strong> toggle for the full per-run breakdown - how many
-        were scanned, already had a trailer, downloaded, upgraded, or not found, plus why a run stopped early
-        if it did.</td></tr>
+        numbers - untouched by whatever a currently-in-progress run is doing. Trailers/Theme songs here are a
+        <em>delta</em> - what that one run itself found, downloaded, or upgraded - not how many of the
+        library's items have one overall (that's what Overall, and Current run building up toward the same
+        idea live, already show); no coverage bar either, since a percentage of the whole library wouldn't
+        mean anything for a single run's own finds. Shows the run's date, duration, and how it ended, with a
+        <strong>Details</strong> toggle for the full per-run breakdown - how many were scanned, already had a
+        trailer, downloaded, upgraded, or not found, plus why a run stopped early if it did.</td></tr>
       <tr><th>Overall</th><td>One row per library on the server - always every library, regardless of
-        which ones are currently selected under <em>Libraries</em> above - showing how many of its
+        which ones are currently selected under <em>Libraries to scan</em> below - showing how many of its
         movies/series actually have a trailer or theme song <em>right now</em>. Recomputed fresh each time
         the page loads, not cached.</td></tr>
     </table>
     <p>
-      The Trailers and Theme songs columns show a tinted coverage bar behind the count - green for trailers,
-      blue for theme songs - filled to the percentage of that library's items already covered, with the
-      percentage shown alongside the count.
+      On the Current run and Overall tabs, the Trailers and Theme songs columns show a tinted coverage bar
+      behind the count - green for trailers, blue for theme songs - filled to the percentage of that
+      library's items already covered, with the percentage shown alongside the count.
     </p>
   </div>
 
   <div class="setting-group">
     <h3>Scanning</h3>
-
-    <div class="setting">
-      <span class="name">Libraries</span><span class="default">default: all libraries</span>
-      <p>Which libraries to scan, listed live from your server. Leave everything unchecked to scan every
-      library; check specific ones to scope each run to just those. Applies to both movies and TV series —
-      only libraries that actually contain them are useful here.</p>
-    </div>
 
     <div class="setting">
       <span class="name">Trigger a library scan after changes</span><span class="default">default: on</span>
@@ -95,6 +91,14 @@
       <span class="name">Maximum trailer duration (seconds)</span><span class="default">default: 300</span>
       <p>Search results longer than this are assumed to be a full movie, compilation, or unrelated video —
       not a trailer — and rejected.</p>
+    </div>
+
+    <div class="setting">
+      <span class="name">Libraries to scan</span><span class="default">default: all libraries</span>
+      <p>Which libraries to scan, listed live from your server. Leave everything unchecked to scan every
+      library; check specific ones to scope each run to just those. Applies to both movies and TV series —
+      only libraries that actually contain them are useful here. The settings above apply the same way
+      regardless of which libraries are picked.</p>
     </div>
   </div>
 
