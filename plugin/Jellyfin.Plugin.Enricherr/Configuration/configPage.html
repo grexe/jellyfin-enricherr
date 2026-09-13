@@ -390,10 +390,10 @@
                                     Loading&hellip;
                                 </div>
                                 <div style="margin-top: 0.75em; display: flex; align-items: center; gap: 0.75em; flex-wrap: wrap;">
-                                    <button is="emby-button" type="button" id="DebugRunSelectedButton" class="raised button-submit emby-button" disabled>
+                                    <button is="emby-button" type="button" id="DebugRunSelectedButton" class="raised button-submit emby-button" disabled style="opacity: 0.45;">
                                         <span>Run for selected item</span>
                                     </button>
-                                    <button is="emby-button" type="button" id="DebugRunFolderButton" class="raised button-submit emby-button" disabled title="Run against the folder currently being browsed - resolves to its one video file automatically.">
+                                    <button is="emby-button" type="button" id="DebugRunFolderButton" class="raised button-submit emby-button" disabled style="opacity: 0.45;" title="Run against the folder currently being browsed - resolves to its one video file automatically.">
                                         <span>Run for this folder</span>
                                     </button>
                                     <span id="DebugSelectedFileName" class="fieldDescription" style="margin: 0;"></span>
@@ -850,11 +850,21 @@
                 });
             }
 
+            // .disabled alone isn't visibly obvious here - this page has no
+            // stylesheet to back a :disabled look (see the note above
+            // updateRateLimitRetryDelayEnabled on <style> blocks being dropped), so
+            // both run buttons also get their dimming applied directly as an inline
+            // style, the same way every other disabled-looking control on this page does.
+            function setDebugRunButtonEnabled(button, enabled) {
+                button.disabled = !enabled;
+                button.style.opacity = enabled ? '' : '0.45';
+            }
+
             function selectDebugFile(entry, rowEl) {
                 debugSelection = { type: 'file', path: entry.path };
                 document.querySelector('#DebugSelectedFileName').textContent = 'Selected: ' + entry.name;
-                document.querySelector('#DebugRunSelectedButton').disabled = false;
-                document.querySelector('#DebugRunFolderButton').disabled = true;
+                setDebugRunButtonEnabled(document.querySelector('#DebugRunSelectedButton'), true);
+                setDebugRunButtonEnabled(document.querySelector('#DebugRunFolderButton'), false);
                 document.querySelector('#DebugRunResult').innerHTML = '';
 
                 Array.prototype.forEach.call(document.querySelectorAll('#DebugFileBrowserList > div'), function (row) {
@@ -865,8 +875,8 @@
             function selectDebugFolder(path) {
                 debugSelection = path ? { type: 'folder', path: path } : null;
                 document.querySelector('#DebugSelectedFileName').textContent = path ? 'Selected folder: ' + (path.split('/').pop() || path) : '';
-                document.querySelector('#DebugRunSelectedButton').disabled = true;
-                document.querySelector('#DebugRunFolderButton').disabled = !path;
+                setDebugRunButtonEnabled(document.querySelector('#DebugRunSelectedButton'), false);
+                setDebugRunButtonEnabled(document.querySelector('#DebugRunFolderButton'), !!path);
                 document.querySelector('#DebugRunResult').innerHTML = '';
             }
 
@@ -1253,8 +1263,8 @@
                 var selectedButton = document.querySelector('#DebugRunSelectedButton');
                 var folderButton = document.querySelector('#DebugRunFolderButton');
                 var resultEl = document.querySelector('#DebugRunResult');
-                selectedButton.disabled = true;
-                folderButton.disabled = true;
+                setDebugRunButtonEnabled(selectedButton, false);
+                setDebugRunButtonEnabled(folderButton, false);
                 resultEl.textContent = 'Running…';
 
                 fetch(ApiClient.serverAddress() + '/Enricherr/RunSingleItem', {
@@ -1300,8 +1310,8 @@
                 }).catch(function (err) {
                     resultEl.textContent = 'Failed: ' + err.message;
                 }).finally(function () {
-                    selectedButton.disabled = !(debugSelection && debugSelection.type === 'file');
-                    folderButton.disabled = !(debugSelection && debugSelection.type === 'folder');
+                    setDebugRunButtonEnabled(selectedButton, !!(debugSelection && debugSelection.type === 'file'));
+                    setDebugRunButtonEnabled(folderButton, !!(debugSelection && debugSelection.type === 'folder'));
                 });
             }
 

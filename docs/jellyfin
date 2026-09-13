@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.1.4",
+        "changelog": "Fixed the debug run buttons still looking fully active/blue at the initial \"Select a library:\" state (and whenever else they were actually disabled) - confirmed live via a screenshot. Jellyfin strips <style> blocks from plugin settings pages, so the plain HTML \"disabled\" attribute alone (which correctly blocked clicks) never got any visual dimming here, unlike a native browser button - every other disabled-looking control on this page already works around that with an explicit inline opacity, which \"Run for selected item\"/\"Run for this folder\" were missing. Both now dim the same way.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.1.4.zip",
+        "checksum": "c4de4407158a785d397b4f02a8b078af",
+        "timestamp": "2026-09-13T12:29:04Z"
+      },
+      {
         "version": "1.7.1.3",
         "changelog": "Fixed the debug file picker's \"grey logic\": \"Run for selected item\" and \"Run for this folder\" could both end up enabled, or a stale selection from a folder you'd already navigated away from could still be run - since a clicked file's selection was never cleared when you browsed into a different folder afterwards, and \"Run for this folder\" was simply tied to being inside any directory rather than to an actual selection. Selecting a file and browsing into a folder are now mutually exclusive, reset on each other: clicking a file enables only \"Run for selected item\" (and disables \"Run for this folder\"), while browsing into a folder selects that folder (enabling only \"Run for this folder\") and clears any file selected in a folder you've left.",
         "targetAbi": "10.11.0.0",
