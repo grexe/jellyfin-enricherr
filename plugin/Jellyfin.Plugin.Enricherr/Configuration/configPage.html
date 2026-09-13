@@ -780,17 +780,16 @@
                 });
             }
 
-            // The debug file browser's own selection state - which file (if any) is
-            // currently picked for "Run for selected file", and the path currently
-            // being listed (null means the top-level library-root list).
-            var debugSelectedPath = null;
-            var currentBrowsePath = null;
+            // The debug file browser's own selection state - at most one of a file
+            // (clicked in the list) or a folder (the one currently being browsed) is
+            // "selected" at a time, and each run button is only enabled while the
+            // selection matches its own type. { type: 'file'|'folder', path } or null.
+            var debugSelection = null;
 
             function loadDebugFileBrowser(path) {
                 var pathEl = document.querySelector('#DebugFileBrowserPath');
                 var listEl = document.querySelector('#DebugFileBrowserList');
                 var upButton = document.querySelector('#DebugFileBrowserUpButton');
-                var folderButton = document.querySelector('#DebugRunFolderButton');
 
                 listEl.textContent = 'Loading…';
                 var url = ApiClient.serverAddress() + '/Enricherr/BrowseFileSystem' + (path ? '?path=' + encodeURIComponent(path) : '');
@@ -814,14 +813,12 @@
                         loadDebugFileBrowser(result.parentPath);
                     };
 
-                    // "Run for this folder" always targets whichever folder is
-                    // currently being browsed - the server resolves it down to the
-                    // one video file inside it (e.g. to test loose-subtitle renaming,
-                    // which only matters once a movie already lives in its own
-                    // dedicated folder). Only enabled once we're inside a real
-                    // folder, not at the top-level library list.
-                    currentBrowsePath = result.path;
-                    folderButton.disabled = !result.path;
+                    // Browsing into a folder is itself "selecting" it for "Run for
+                    // this folder" - and, just as importantly, clears out any file
+                    // selected in a folder we've since navigated away from, so a
+                    // stale file selection can never be run against once its own
+                    // folder listing is no longer even on screen.
+                    selectDebugFolder(result.path);
 
                     listEl.innerHTML = '';
                     if (!result.entries.length) {
@@ -854,14 +851,23 @@
             }
 
             function selectDebugFile(entry, rowEl) {
-                debugSelectedPath = entry.path;
+                debugSelection = { type: 'file', path: entry.path };
                 document.querySelector('#DebugSelectedFileName').textContent = 'Selected: ' + entry.name;
                 document.querySelector('#DebugRunSelectedButton').disabled = false;
+                document.querySelector('#DebugRunFolderButton').disabled = true;
                 document.querySelector('#DebugRunResult').innerHTML = '';
 
                 Array.prototype.forEach.call(document.querySelectorAll('#DebugFileBrowserList > div'), function (row) {
                     row.style.fontWeight = row === rowEl ? '700' : '400';
                 });
+            }
+
+            function selectDebugFolder(path) {
+                debugSelection = path ? { type: 'folder', path: path } : null;
+                document.querySelector('#DebugSelectedFileName').textContent = path ? 'Selected folder: ' + (path.split('/').pop() || path) : '';
+                document.querySelector('#DebugRunSelectedButton').disabled = true;
+                document.querySelector('#DebugRunFolderButton').disabled = !path;
+                document.querySelector('#DebugRunResult').innerHTML = '';
             }
 
             function loadLastRunSummary() {
@@ -1294,22 +1300,22 @@
                 }).catch(function (err) {
                     resultEl.textContent = 'Failed: ' + err.message;
                 }).finally(function () {
-                    selectedButton.disabled = !debugSelectedPath;
-                    folderButton.disabled = !currentBrowsePath;
+                    selectedButton.disabled = !(debugSelection && debugSelection.type === 'file');
+                    folderButton.disabled = !(debugSelection && debugSelection.type === 'folder');
                 });
             }
 
             document.querySelector('#DebugRunSelectedButton')
                 .addEventListener('click', function () {
-                    if (debugSelectedPath) {
-                        runDebugItem(debugSelectedPath);
+                    if (debugSelection && debugSelection.type === 'file') {
+                        runDebugItem(debugSelection.path);
                     }
                 });
 
             document.querySelector('#DebugRunFolderButton')
                 .addEventListener('click', function () {
-                    if (currentBrowsePath) {
-                        runDebugItem(currentBrowsePath);
+                    if (debugSelection && debugSelection.type === 'folder') {
+                        runDebugItem(debugSelection.path);
                     }
                 });
 

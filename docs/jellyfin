@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.1.3",
+        "changelog": "Fixed the debug file picker's \"grey logic\": \"Run for selected item\" and \"Run for this folder\" could both end up enabled, or a stale selection from a folder you'd already navigated away from could still be run - since a clicked file's selection was never cleared when you browsed into a different folder afterwards, and \"Run for this folder\" was simply tied to being inside any directory rather than to an actual selection. Selecting a file and browsing into a folder are now mutually exclusive, reset on each other: clicking a file enables only \"Run for selected item\" (and disables \"Run for this folder\"), while browsing into a folder selects that folder (enabling only \"Run for this folder\") and clears any file selected in a folder you've left.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.1.3.zip",
+        "checksum": "3732b9dcd6fd372185aae971dab3e8ff",
+        "timestamp": "2026-09-13T11:28:18Z"
+      },
+      {
         "version": "1.7.1.2",
         "changelog": "The debug file picker's result showed a movie's trailer/theme-song outcome, but not whether \"Rename loose subtitle files\" (if enabled) actually renamed anything for that item - confirmed live, where the server log clearly showed a subtitle rename but the debug result panel said nothing about it. A \"Loose subtitles renamed: N\" line now appears in the debug result whenever it renamed at least one file, and a matching \"Loose Subtitles Renamed\" line was added to a normal run's own end-of-run summary log for the same reason it was missing there too.",
         "targetAbi": "10.11.0.0",
