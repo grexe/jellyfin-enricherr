@@ -822,10 +822,7 @@ public class FetchTrailersTask : IScheduledTask
         // movie's final folder directly rather than needing to be swept along by
         // MigrateToOwnFolder, which wouldn't recognize "theme.mp3" as this movie's
         // file anyway (not tied to its title stem the way IsSidecarOf checks for).
-        var movieHasOwnFolder = string.Equals(
-            Path.GetFileName(themeSongFolder),
-            Path.GetFileNameWithoutExtension(localPath),
-            StringComparison.Ordinal);
+        var movieHasOwnFolder = MovieFileOperations.HasOwnFolder(localPath);
 
         if (config.RenameLooseSubtitles && movieHasOwnFolder)
         {

@@ -37,18 +37,38 @@ public static class MovieFileOperations
     private const long MinMediaSizeBytes = 1024 * 1024; // 1 MB minimum for a valid movie video file
 
     /// <summary>
-    /// Whether a movie already lives in a folder named after its own file (the same
-    /// check <see cref="MigrateToOwnFolder"/> itself uses to decide there's nothing
-    /// to do) - shared with theme-song fetching (which requires this, to avoid
-    /// misattributing a shared folder's theme.mp3 across every movie in it) and the
-    /// settings page's library-totals count, so both agree with migration's own idea
-    /// of "already in its own folder".
+    /// Whether a movie already lives in a folder dedicated to it (the same check
+    /// <see cref="MigrateToOwnFolder"/> itself uses to decide there's nothing to do) -
+    /// shared with theme-song fetching (which requires this, to avoid misattributing a
+    /// shared folder's theme.mp3 across every movie in it) and the settings page's
+    /// library-totals count, so both agree with migration's own idea of "already in its
+    /// own folder". A folder named EXACTLY after the movie file always counts; so does
+    /// one named after it plus a trailing qualifier ("Hard Boiled (1992) (2160p UHD
+    /// BluRay x265 10bit DV HDR10+ FLAC 1.0 Chinese r00t)") - confirmed live, where
+    /// requiring an exact match nested a second "Hard Boiled (1992)/" folder *inside*
+    /// a folder already uniquely dedicated to that movie, one of several differently
+    /// encoded copies each kept in its own qualifier-suffixed folder (Jellyfin's own
+    /// multi-version convention - people keep several versions of the same movie for
+    /// different playback clients, to skip transcoding).
     /// </summary>
     public static bool HasOwnFolder(string moviePath)
     {
         var folder = Path.GetDirectoryName(moviePath);
-        return !string.IsNullOrEmpty(folder) &&
-               string.Equals(Path.GetFileName(folder), Path.GetFileNameWithoutExtension(moviePath), StringComparison.Ordinal);
+        if (string.IsNullOrEmpty(folder))
+        {
+            return false;
+        }
+
+        var folderName = Path.GetFileName(folder);
+        var movieStem = Path.GetFileNameWithoutExtension(moviePath);
+        if (string.Equals(folderName, movieStem, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return folderName.StartsWith(movieStem, StringComparison.Ordinal) &&
+               folderName.Length > movieStem.Length &&
+               (folderName[movieStem.Length] == ' ' || folderName[movieStem.Length] == '(');
     }
 
     /// <summary>
@@ -351,7 +371,7 @@ public static class MovieFileOperations
         var currentDir = Path.GetDirectoryName(localPath) ?? string.Empty;
         var movieStem = Path.GetFileNameWithoutExtension(localPath);
 
-        if (Path.GetFileName(currentDir) == movieStem)
+        if (HasOwnFolder(localPath))
         {
             return (localPath, false);
         }
