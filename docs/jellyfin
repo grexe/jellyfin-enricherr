@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.2.1",
+        "changelog": "\"Run automatically when a new movie or series is added\" had zero log visibility into whether it was even seeing Jellyfin's ItemAdded/RefreshCompleted events for a given item - confirmed live, where a movie's metadata refresh completed (and a separate Jellyfin trickplay-generation task for it finished successfully afterwards) but nothing indicated whether this plugin's own watcher had reacted at all, making a genuine miss impossible to tell apart from \"this wasn't actually a newly-added item to begin with\" (an existing library item just being routinely re-refreshed is deliberately ignored by design). With \"Verbose logging\" on, the watcher now logs when it starts tracking a newly added item, and when a completed refresh doesn't match anything it's tracking (so it's clear whether that's expected or not) - no behavior change otherwise.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.2.1.zip",
+        "checksum": "b3feb90166a1f34ec543b43e3e7d008f",
+        "timestamp": "2026-09-13T13:12:31Z"
+      },
+      {
         "version": "1.7.2.0",
         "changelog": "Fixed a real folder-nesting bug found live: two different-quality copies of the same movie, each already correctly kept in its own dedicated folder (\"Hard Boiled (1992)/\" and \"Hard Boiled (1992) (2160p UHD BluRay x265 10bit DV HDR10+ FLAC 1.0 Chinese r00t)/\" - a resolution/edition qualifier appended to the folder name, which is how people commonly keep several versions of the same movie for different playback clients without re-transcoding). \"Has this movie already got its own folder?\" only ever recognized an EXACT name match between the folder and the (freshly renamed) movie file's own stem - so the second copy's already-dedicated, just differently-named folder didn't count, and the plugin nested a second \"Hard Boiled (1992)/\" folder *inside* it instead of leaving it alone. A folder named after the movie PLUS a trailing qualifier (a space or \"(\" right after the movie's own name) now also counts as already dedicated, everywhere this plugin makes that decision (migration, theme-song/subtitle-rename gating, the library-totals count) - a plain shared/flat folder containing unrelated movies is unaffected and still gets migrated as before. This does not un-nest a folder this bug already created - move the file (and its trailer) back up one level manually if you're affected.",
         "targetAbi": "10.11.0.0",

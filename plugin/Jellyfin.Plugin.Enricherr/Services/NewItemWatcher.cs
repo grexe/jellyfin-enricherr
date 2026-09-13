@@ -94,7 +94,8 @@ public sealed class NewItemWatcher : IHostedService, IDisposable
 
     private void OnItemAdded(object? sender, ItemChangeEventArgs e)
     {
-        if (Plugin.Instance is null || !Plugin.Instance.Configuration.TriggerOnNewItem)
+        var config = Plugin.Instance?.Configuration;
+        if (config is null || !config.TriggerOnNewItem)
         {
             return;
         }
@@ -107,11 +108,24 @@ public sealed class NewItemWatcher : IHostedService, IDisposable
         }
 
         _pendingItemIds[e.Item.Id] = 0;
+
+        // Confirmed live: with no visibility at all into whether ItemAdded/
+        // RefreshCompleted actually fired for a given item, "the automatic trigger
+        // didn't run" was impossible to tell apart from "this item was never
+        // ItemAdded in the first place" (e.g. an existing library item just being
+        // re-refreshed, not a genuinely new one - this watcher deliberately ignores
+        // that case). Reuses VerboseLogging rather than a separate setting, since
+        // it's exactly this kind of granular diagnostic noise.
+        if (config.VerboseLogging)
+        {
+            _logger.LogInformation("  > Watching newly added item \"{Name}\" for its metadata refresh to finish.", e.Item.Name);
+        }
     }
 
     private void OnRefreshCompleted(object? sender, GenericEventArgs<BaseItem> e)
     {
-        if (Plugin.Instance is null || !Plugin.Instance.Configuration.TriggerOnNewItem)
+        var config = Plugin.Instance?.Configuration;
+        if (config is null || !config.TriggerOnNewItem)
         {
             return;
         }
@@ -121,6 +135,11 @@ public sealed class NewItemWatcher : IHostedService, IDisposable
         // exists to react to.
         if (!_pendingItemIds.TryRemove(e.Argument.Id, out _))
         {
+            if (config.VerboseLogging)
+            {
+                _logger.LogInformation("  > Metadata refresh finished for \"{Name}\", but it wasn't added as a new item - ignoring.", e.Argument.Name);
+            }
+
             return;
         }
 
