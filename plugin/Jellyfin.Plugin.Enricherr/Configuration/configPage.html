@@ -1279,9 +1279,13 @@
                         result.title + (result.year ? ' (' + result.year + ')' : ''),
                         'Metadata matched this run: ' + (result.metadataMatched ? 'yes' : 'no'),
                         'Trailer: ' + (result.trailerDownloadedOrUpgraded ? 'downloaded/upgraded' : (result.alreadyHadTrailer ? 'already had one' : 'not found')),
-                        'Theme song: ' + (result.themeSongDownloaded ? 'downloaded' : (result.themeSongAlreadyHad ? 'already had one' : 'n/a')),
-                        result.outcome
+                        'Theme song: ' + (result.themeSongDownloaded ? 'downloaded' : (result.themeSongAlreadyHad ? 'already had one' : 'n/a'))
                     ];
+                    if (result.subtitlesRenamed > 0) {
+                        lines.push('Loose subtitles renamed: ' + result.subtitlesRenamed);
+                    }
+
+                    lines.push(result.outcome);
                     lines.forEach(function (line) {
                         var p = document.createElement('div');
                         p.textContent = line;

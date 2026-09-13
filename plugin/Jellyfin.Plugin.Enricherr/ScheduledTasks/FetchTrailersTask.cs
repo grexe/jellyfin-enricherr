@@ -450,6 +450,7 @@ public class FetchTrailersTask : IScheduledTask
             stats.Downloaded > 0 || stats.Upgraded > 0,
             stats.ThemeSongDownloaded > 0,
             stats.ThemeSongAlreadyHad > 0,
+            stats.SubtitlesRenamed,
             outcome);
     }
 
@@ -575,6 +576,7 @@ public class FetchTrailersTask : IScheduledTask
         [property: JsonPropertyName("trailerDownloadedOrUpgraded")] bool TrailerDownloadedOrUpgraded,
         [property: JsonPropertyName("themeSongDownloaded")] bool ThemeSongDownloaded,
         [property: JsonPropertyName("themeSongAlreadyHad")] bool ThemeSongAlreadyHad,
+        [property: JsonPropertyName("subtitlesRenamed")] int SubtitlesRenamed,
         [property: JsonPropertyName("outcome")] string Outcome);
 
     /// <summary>
@@ -827,7 +829,7 @@ public class FetchTrailersTask : IScheduledTask
 
         if (config.RenameLooseSubtitles && movieHasOwnFolder)
         {
-            MovieFileOperations.RenameLooseSubtitles(localPath, safeTitle, config.DryRun, libraryRoot, _logger);
+            stats.SubtitlesRenamed += MovieFileOperations.RenameLooseSubtitles(localPath, safeTitle, config.DryRun, libraryRoot, _logger);
         }
 
         // Confirmed live: a folder migrated in an *earlier* run never gets its
@@ -1532,6 +1534,11 @@ public class FetchTrailersTask : IScheduledTask
                 _logger.LogInformation("  Trailers Upgraded       : {Count}", stats.Upgraded);
             }
 
+            if (stats.SubtitlesRenamed > 0)
+            {
+                _logger.LogInformation(dryRun ? "  Loose Subtitles (Dry-Run): {Count}" : "  Loose Subtitles Renamed : {Count}", stats.SubtitlesRenamed);
+            }
+
             if (stats.ThemeSongAlreadyHad + stats.ThemeSongDownloaded + stats.ThemeSongNotFound > 0)
             {
                 _logger.LogInformation("  Theme Songs (had/new/not found): {AlreadyHad}/{Downloaded}/{NotFound}", stats.ThemeSongAlreadyHad, stats.ThemeSongDownloaded, stats.ThemeSongNotFound);
@@ -1627,6 +1634,8 @@ public class FetchTrailersTask : IScheduledTask
         public int Migrated { get; set; }
 
         public int Upgraded { get; set; }
+
+        public int SubtitlesRenamed { get; set; }
 
         public int ThemeSongAlreadyHad { get; set; }
 

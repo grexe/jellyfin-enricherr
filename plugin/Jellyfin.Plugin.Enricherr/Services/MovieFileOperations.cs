@@ -264,17 +264,17 @@ public static class MovieFileOperations
     /// itself needs - so a shared flat folder's other movies' files are never swept
     /// in by mistake.
     /// </summary>
-    public static void RenameLooseSubtitles(string moviePath, string safeTitle, bool dryRun, string? libraryRoot, ILogger logger)
+    public static int RenameLooseSubtitles(string moviePath, string safeTitle, bool dryRun, string? libraryRoot, ILogger logger)
     {
         if (!HasOwnFolder(moviePath))
         {
-            return;
+            return 0;
         }
 
         var folderPath = Path.GetDirectoryName(moviePath);
         if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
         {
-            return;
+            return 0;
         }
 
         var movieStem = Path.GetFileNameWithoutExtension(moviePath);
@@ -287,9 +287,10 @@ public static class MovieFileOperations
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning("  > Could not list {Folder} for loose subtitle files: {Error}", PathDisplay.Relative(folderPath, libraryRoot), e.Message);
-            return;
+            return 0;
         }
 
+        var renamedCount = 0;
         foreach (var entry in entries)
         {
             var ext = Path.GetExtension(entry);
@@ -317,6 +318,7 @@ public static class MovieFileOperations
             if (dryRun)
             {
                 logger.LogInformation("  > [DRY-RUN] Would rename loose subtitle {Name} to {Target}.", Path.GetFileName(entry), Path.GetFileName(targetPath));
+                renamedCount++;
                 continue;
             }
 
@@ -324,12 +326,15 @@ public static class MovieFileOperations
             {
                 File.Move(entry, targetPath);
                 logger.LogInformation("  > Renamed loose subtitle {Name} to {Target}.", Path.GetFileName(entry), Path.GetFileName(targetPath));
+                renamedCount++;
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
                 logger.LogWarning("  > Failed to rename loose subtitle {Name}: {Error}", Path.GetFileName(entry), e.Message);
             }
         }
+
+        return renamedCount;
     }
 
     /// <summary>

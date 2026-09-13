@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.1.2",
+        "changelog": "The debug file picker's result showed a movie's trailer/theme-song outcome, but not whether \"Rename loose subtitle files\" (if enabled) actually renamed anything for that item - confirmed live, where the server log clearly showed a subtitle rename but the debug result panel said nothing about it. A \"Loose subtitles renamed: N\" line now appears in the debug result whenever it renamed at least one file, and a matching \"Loose Subtitles Renamed\" line was added to a normal run's own end-of-run summary log for the same reason it was missing there too.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.1.2.zip",
+        "checksum": "521119cc2dacc0800f3c1528c242a62f",
+        "timestamp": "2026-09-13T11:20:56Z"
+      },
+      {
         "version": "1.7.1.1",
         "changelog": "Three bugs found live in the new debug file picker (1.7.0.0/1.7.1.0). (1) Its directory listing sorted by raw Unicode code point (the .NET runtime's usual culture-aware string sort quietly degrades to this on Jellyfin's typical Linux/Docker deployment, which strips ICU globalization data to save space) - so any folder starting with an accented letter, like \"F\\u00f6gi Is a Bastard\", sorted after every plain-ASCII name including \"Z...\", instead of near the other F's. Sorting now folds accented Latin letters onto their base letter before comparing (\\u00f6 -> o, \\u00e4 -> a, ...), giving a natural, locale-like order regardless of the server's globalization setup. (2) The folder-selection flow was awkward: pick \"Use this folder\" above the list, then find and click \"Run for selected item\" below it. That button is gone; a new \"Run for this folder\" button sits directly next to \"Run for selected item\" and always targets whichever folder is currently being browsed - no separate selection step. (3) Running against a movie's own folder failed outright once it already had a local trailer downloaded (\"Fögi Is a Bastard (1998)-trailer.mp4\" next to \"Fögi Is a Bastard (1998).mp4\") - the folder-to-video-file resolution counted the trailer itself as a second candidate \"movie\" and refused to pick one. That resolution now excludes trailer/sample-named files, the same way a normal scan already does.",
         "targetAbi": "10.11.0.0",
