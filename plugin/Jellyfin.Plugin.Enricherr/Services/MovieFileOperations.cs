@@ -60,6 +60,29 @@ public static class MovieFileOperations
     /// </summary>
     public static bool HasVideoExtension(string path) => VideoExtensions.Contains(Path.GetExtension(path));
 
+    /// <summary>
+    /// Whether a file's name looks like a trailer or sample clip, based on its stem alone
+    /// (no existence/size checks - unlike <see cref="IsValidMediaFile"/>). Used to keep a
+    /// movie's own local trailer/sample file from being mistaken for a second candidate
+    /// "main movie" file - e.g. when the settings page's debug file picker resolves a
+    /// folder selection down to the one video file inside it.
+    /// </summary>
+    public static bool IsTrailerOrSampleFile(string path)
+    {
+        var filenameLower = Path.GetFileName(path).ToLowerInvariant();
+        var stem = Path.GetFileNameWithoutExtension(filenameLower);
+
+        if (stem == "trailer" || stem.EndsWith("-trailer", StringComparison.Ordinal) ||
+            stem.EndsWith("_trailer", StringComparison.Ordinal) || stem.EndsWith(".trailer", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return stem == "sample" || stem.EndsWith("-sample", StringComparison.Ordinal) ||
+               stem.EndsWith("_sample", StringComparison.Ordinal) || stem.EndsWith(".sample", StringComparison.Ordinal) ||
+               filenameLower.Contains(".sample.", StringComparison.Ordinal);
+    }
+
     /// <summary>Whether the local path is a valid main movie video file (not a trailer, sample, or extra).</summary>
     public static bool IsValidMediaFile(string localPath, out string? reason)
     {

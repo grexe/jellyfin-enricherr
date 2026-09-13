@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -224,7 +226,8 @@ public class EnricherrController : ControllerBase
                     multiLocationLibraries.Contains(r.Library) ? $"{r.Library} ({Path.GetFileName(r.Root.TrimEnd(Path.DirectorySeparatorChar))})" : r.Library,
                     r.Root,
                     true))
-                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(e => FoldForSort(e.Name), StringComparer.Ordinal)
+                .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             return Ok(new BrowseFileSystemResult(null, null, rootEntries));
         }
@@ -253,11 +256,13 @@ public class EnricherrController : ControllerBase
         try
         {
             var directories = Directory.GetDirectories(fullPath)
-                .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(d => FoldForSort(Path.GetFileName(d)), StringComparer.Ordinal)
+                .ThenBy(d => d, StringComparer.OrdinalIgnoreCase)
                 .Select(d => new FileSystemEntryDto(Path.GetFileName(d), d, true));
             var files = Directory.GetFiles(fullPath)
                 .Where(MovieFileOperations.HasVideoExtension)
-                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(f => FoldForSort(Path.GetFileName(f)), StringComparer.Ordinal)
+                .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)
                 .Select(f => new FileSystemEntryDto(Path.GetFileName(f), f, false));
             entries = directories.Concat(files).ToList();
         }
@@ -301,7 +306,14 @@ public class EnricherrController : ControllerBase
             List<string> videoFiles;
             try
             {
-                videoFiles = Directory.GetFiles(filePath).Where(MovieFileOperations.HasVideoExtension).ToList();
+                // A movie's own local trailer (or a leftover sample clip) sits right next
+                // to it in the same folder once downloaded - without excluding those, a
+                // folder that already has a trailer would always look like it has two
+                // "movies" and refuse to run at all.
+                videoFiles = Directory.GetFiles(filePath)
+                    .Where(MovieFileOperations.HasVideoExtension)
+                    .Where(f => !MovieFileOperations.IsTrailerOrSampleFile(f))
+                    .ToList();
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException)
             {
@@ -329,6 +341,30 @@ public class EnricherrController : ControllerBase
 
         var result = await _fetchTrailersTask.RunForSingleItemAsync(movie, cancellationToken).ConfigureAwait(false);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// A sort key that folds accented Latin letters onto their base letter (ö -&gt; o, ä -&gt;
+    /// a, ...) before lower-casing, so the debug file browser's listing reads in a natural,
+    /// locale-like order (ö sorting next to o) rather than ordinal Unicode code-point order
+    /// (where ö sorts after z). Plain <see cref="StringComparer.OrdinalIgnoreCase"/> looks
+    /// culture-aware on a dev machine but degrades to this on Jellyfin's typical Linux/
+    /// Docker deployment, where ICU globalization data is usually stripped from the .NET
+    /// runtime image.
+    /// </summary>
+    private static string FoldForSort(string name)
+    {
+        var normalized = name.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(normalized.Length);
+        foreach (var c in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString().ToLowerInvariant();
     }
 
     private static bool IsPathUnderRoot(string path, string root)

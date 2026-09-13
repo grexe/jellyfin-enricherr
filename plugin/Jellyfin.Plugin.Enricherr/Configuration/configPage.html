@@ -373,18 +373,17 @@
                                 <h3 class="checkboxListLabel">Run against a single file</h3>
                                 <div class="fieldDescription settingHelp">
                                     Browse to one movie file and run this plugin's own processing against just that
-                                    item - useful for seeing exactly how a specific file is handled without waiting
-                                    on, or otherwise affecting, a full scan. Only shows files inside your configured
-                                    libraries. This is a real run against that one file (not a dry run) unless "Dry
-                                    run" above is also checked.
+                                    item, or use "Run for this folder" to run against whichever folder you're
+                                    currently browsing (it resolves to the one video file inside it automatically -
+                                    e.g. to test loose-subtitle renaming). Useful for seeing exactly how a specific
+                                    file is handled without waiting on, or otherwise affecting, a full scan. Only
+                                    shows files inside your configured libraries. This is a real run (not a dry run)
+                                    unless "Dry run" above is also checked.
                                 </div>
                                 <div id="DebugFileBrowserPath" class="fieldDescription" style="margin-top: 0.6em; word-break: break-all; min-height: 1.2em;"></div>
                                 <div style="display: flex; gap: 0.5em; margin-bottom: 0.5em; flex-wrap: wrap;">
                                     <button is="emby-button" type="button" id="DebugFileBrowserUpButton" class="raised button-cancel emby-button" style="display:none;">
                                         <span>&#8593; Up</span>
-                                    </button>
-                                    <button is="emby-button" type="button" id="DebugUseCurrentFolderButton" class="raised button-cancel emby-button" style="display:none;" title="Select this folder itself as the run target, instead of a video file inside it - e.g. to test loose-subtitle renaming.">
-                                        <span>Use this folder</span>
                                     </button>
                                 </div>
                                 <div id="DebugFileBrowserList" style="max-height: 260px; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 4px; padding: 0.25em 0;">
@@ -393,6 +392,9 @@
                                 <div style="margin-top: 0.75em; display: flex; align-items: center; gap: 0.75em; flex-wrap: wrap;">
                                     <button is="emby-button" type="button" id="DebugRunSelectedButton" class="raised button-submit emby-button" disabled>
                                         <span>Run for selected item</span>
+                                    </button>
+                                    <button is="emby-button" type="button" id="DebugRunFolderButton" class="raised button-submit emby-button" disabled title="Run against the folder currently being browsed - resolves to its one video file automatically.">
+                                        <span>Run for this folder</span>
                                     </button>
                                     <span id="DebugSelectedFileName" class="fieldDescription" style="margin: 0;"></span>
                                 </div>
@@ -782,12 +784,13 @@
             // currently picked for "Run for selected file", and the path currently
             // being listed (null means the top-level library-root list).
             var debugSelectedPath = null;
+            var currentBrowsePath = null;
 
             function loadDebugFileBrowser(path) {
                 var pathEl = document.querySelector('#DebugFileBrowserPath');
                 var listEl = document.querySelector('#DebugFileBrowserList');
                 var upButton = document.querySelector('#DebugFileBrowserUpButton');
-                var useFolderButton = document.querySelector('#DebugUseCurrentFolderButton');
+                var folderButton = document.querySelector('#DebugRunFolderButton');
 
                 listEl.textContent = 'Loading…';
                 var url = ApiClient.serverAddress() + '/Enricherr/BrowseFileSystem' + (path ? '?path=' + encodeURIComponent(path) : '');
@@ -811,15 +814,14 @@
                         loadDebugFileBrowser(result.parentPath);
                     };
 
-                    // Selects the folder currently being browsed itself as the run
-                    // target, rather than a video file inside it - needed to test
-                    // something like loose-subtitle renaming, which only matters once
-                    // a movie already lives in its own dedicated folder (the server
-                    // resolves the one video file inside it on its own).
-                    useFolderButton.style.display = result.path ? '' : 'none';
-                    useFolderButton.onclick = function () {
-                        selectDebugFile({ path: result.path, name: result.path.split('/').pop() || result.path }, null);
-                    };
+                    // "Run for this folder" always targets whichever folder is
+                    // currently being browsed - the server resolves it down to the
+                    // one video file inside it (e.g. to test loose-subtitle renaming,
+                    // which only matters once a movie already lives in its own
+                    // dedicated folder). Only enabled once we're inside a real
+                    // folder, not at the top-level library list.
+                    currentBrowsePath = result.path;
+                    folderButton.disabled = !result.path;
 
                     listEl.innerHTML = '';
                     if (!result.entries.length) {
@@ -853,7 +855,7 @@
 
             function selectDebugFile(entry, rowEl) {
                 debugSelectedPath = entry.path;
-                document.querySelector('#DebugSelectedFileName').textContent = (rowEl ? 'Selected: ' : 'Selected folder: ') + entry.name;
+                document.querySelector('#DebugSelectedFileName').textContent = 'Selected: ' + entry.name;
                 document.querySelector('#DebugRunSelectedButton').disabled = false;
                 document.querySelector('#DebugRunResult').innerHTML = '';
 
@@ -1241,58 +1243,70 @@
                     });
                 });
 
+            function runDebugItem(path) {
+                var selectedButton = document.querySelector('#DebugRunSelectedButton');
+                var folderButton = document.querySelector('#DebugRunFolderButton');
+                var resultEl = document.querySelector('#DebugRunResult');
+                selectedButton.disabled = true;
+                folderButton.disabled = true;
+                resultEl.textContent = 'Running…';
+
+                fetch(ApiClient.serverAddress() + '/Enricherr/RunSingleItem', {
+                    method: 'POST',
+                    headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: path })
+                }).then(function (response) {
+                    return response.text().then(function (text) {
+                        var body = null;
+                        try {
+                            body = text ? JSON.parse(text) : null;
+                        } catch (parseErr) {
+                            // Not JSON (e.g. a plain-text error) - fall through with body left null.
+                        }
+
+                        if (!response.ok) {
+                            // A BadRequest/NotFound(string) result serializes as just a
+                            // JSON-encoded string, not an object - use it directly when
+                            // that's what came back, otherwise fall back to the raw text.
+                            throw new Error((typeof body === 'string' && body) || text || ('HTTP ' + response.status));
+                        }
+
+                        return body;
+                    });
+                }).then(function (result) {
+                    resultEl.innerHTML = '';
+                    var lines = [
+                        result.title + (result.year ? ' (' + result.year + ')' : ''),
+                        'Metadata matched this run: ' + (result.metadataMatched ? 'yes' : 'no'),
+                        'Trailer: ' + (result.trailerDownloadedOrUpgraded ? 'downloaded/upgraded' : (result.alreadyHadTrailer ? 'already had one' : 'not found')),
+                        'Theme song: ' + (result.themeSongDownloaded ? 'downloaded' : (result.themeSongAlreadyHad ? 'already had one' : 'n/a')),
+                        result.outcome
+                    ];
+                    lines.forEach(function (line) {
+                        var p = document.createElement('div');
+                        p.textContent = line;
+                        resultEl.appendChild(p);
+                    });
+                }).catch(function (err) {
+                    resultEl.textContent = 'Failed: ' + err.message;
+                }).finally(function () {
+                    selectedButton.disabled = !debugSelectedPath;
+                    folderButton.disabled = !currentBrowsePath;
+                });
+            }
+
             document.querySelector('#DebugRunSelectedButton')
                 .addEventListener('click', function () {
-                    if (!debugSelectedPath) {
-                        return;
+                    if (debugSelectedPath) {
+                        runDebugItem(debugSelectedPath);
                     }
+                });
 
-                    var button = document.querySelector('#DebugRunSelectedButton');
-                    var resultEl = document.querySelector('#DebugRunResult');
-                    button.disabled = true;
-                    resultEl.textContent = 'Running…';
-
-                    fetch(ApiClient.serverAddress() + '/Enricherr/RunSingleItem', {
-                        method: 'POST',
-                        headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ path: debugSelectedPath })
-                    }).then(function (response) {
-                        return response.text().then(function (text) {
-                            var body = null;
-                            try {
-                                body = text ? JSON.parse(text) : null;
-                            } catch (parseErr) {
-                                // Not JSON (e.g. a plain-text error) - fall through with body left null.
-                            }
-
-                            if (!response.ok) {
-                                // A BadRequest/NotFound(string) result serializes as just a
-                                // JSON-encoded string, not an object - use it directly when
-                                // that's what came back, otherwise fall back to the raw text.
-                                throw new Error((typeof body === 'string' && body) || text || ('HTTP ' + response.status));
-                            }
-
-                            return body;
-                        });
-                    }).then(function (result) {
-                        resultEl.innerHTML = '';
-                        var lines = [
-                            result.title + (result.year ? ' (' + result.year + ')' : ''),
-                            'Metadata matched this run: ' + (result.metadataMatched ? 'yes' : 'no'),
-                            'Trailer: ' + (result.trailerDownloadedOrUpgraded ? 'downloaded/upgraded' : (result.alreadyHadTrailer ? 'already had one' : 'not found')),
-                            'Theme song: ' + (result.themeSongDownloaded ? 'downloaded' : (result.themeSongAlreadyHad ? 'already had one' : 'n/a')),
-                            result.outcome
-                        ];
-                        lines.forEach(function (line) {
-                            var p = document.createElement('div');
-                            p.textContent = line;
-                            resultEl.appendChild(p);
-                        });
-                    }).catch(function (err) {
-                        resultEl.textContent = 'Failed: ' + err.message;
-                    }).finally(function () {
-                        button.disabled = false;
-                    });
+            document.querySelector('#DebugRunFolderButton')
+                .addEventListener('click', function () {
+                    if (currentBrowsePath) {
+                        runDebugItem(currentBrowsePath);
+                    }
                 });
 
             document.querySelector('#CookiesUploadButton')
