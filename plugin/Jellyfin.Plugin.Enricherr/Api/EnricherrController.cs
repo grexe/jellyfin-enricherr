@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
+using Jellyfin.Plugin.Enricherr.ScheduledTasks;
 using Jellyfin.Plugin.Enricherr.Services;
 using MediaBrowser.Common.Api;
+using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -48,6 +51,28 @@ public record LibraryTotalsRow(
     [property: JsonPropertyName("trailers")] int Trailers,
     [property: JsonPropertyName("themeSongs")] int ThemeSongs);
 
+/// <summary>One entry (file or directory) in the settings page's debug file browser.</summary>
+/// <param name="Name">The entry's own display name (just the last path segment).</param>
+/// <param name="Path">The entry's full filesystem path.</param>
+/// <param name="IsDirectory">Whether this entry can be descended into.</param>
+public record FileSystemEntryDto(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("path")] string Path,
+    [property: JsonPropertyName("isDirectory")] bool IsDirectory);
+
+/// <summary>One directory listing from the settings page's debug file browser.</summary>
+/// <param name="Path">The directory actually listed, or null for the top-level "pick a library" listing.</param>
+/// <param name="ParentPath">The path to go up one level to, or null if this is already a library root.</param>
+/// <param name="Entries">Subdirectories first, then video files - both alphabetical.</param>
+public record BrowseFileSystemResult(
+    [property: JsonPropertyName("path")] string? Path,
+    [property: JsonPropertyName("parentPath")] string? ParentPath,
+    [property: JsonPropertyName("entries")] List<FileSystemEntryDto> Entries);
+
+/// <summary>Request body for <see cref="EnricherrController.RunSingleItem"/>.</summary>
+/// <param name="Path">Full filesystem path to the movie file to run this plugin's own processing against.</param>
+public record RunSingleItemRequest([property: JsonPropertyName("path")] string Path);
+
 /// <summary>
 /// Handles uploading/removing the yt-dlp cookies file, and listing libraries, from the
 /// plugin's settings page. A headless server has no browser profile to read cookies
@@ -66,6 +91,7 @@ public class EnricherrController : ControllerBase
     private readonly ILogger<EnricherrController> _logger;
     private readonly ILibraryManager _libraryManager;
     private readonly ITaskManager _taskManager;
+    private readonly FetchTrailersTask _fetchTrailersTask;
     private readonly LibraryItemsFinder _libraryItemsFinder;
 
     /// <summary>
@@ -74,11 +100,13 @@ public class EnricherrController : ControllerBase
     /// <param name="logger">Instance of the <see cref="ILogger{EnricherrController}"/> interface.</param>
     /// <param name="libraryManager">Instance of the <see cref="ILibraryManager"/> interface.</param>
     /// <param name="taskManager">Instance of the <see cref="ITaskManager"/> interface, used to confirm a run is actually still active before trusting its live-progress snapshot.</param>
-    public EnricherrController(ILogger<EnricherrController> logger, ILibraryManager libraryManager, ITaskManager taskManager)
+    /// <param name="fetchTrailersTask">Instance of the <see cref="FetchTrailersTask"/> class, used for the debug file picker's single-item runs.</param>
+    public EnricherrController(ILogger<EnricherrController> logger, ILibraryManager libraryManager, ITaskManager taskManager, FetchTrailersTask fetchTrailersTask)
     {
         _logger = logger;
         _libraryManager = libraryManager;
         _taskManager = taskManager;
+        _fetchTrailersTask = fetchTrailersTask;
         _libraryItemsFinder = new LibraryItemsFinder(libraryManager, logger);
     }
 
@@ -169,6 +197,113 @@ public class EnricherrController : ControllerBase
         var plugin = Plugin.Instance ?? throw new InvalidOperationException("Plugin instance is not available.");
         var progress = LiveProgressStore.Load(plugin.DataFolderPath);
         return progress is null ? NoContent() : Ok(progress);
+    }
+
+    /// <summary>
+    /// Lists a directory for the settings page's debug file browser - deliberately
+    /// scoped to only ever descend into a configured Jellyfin library's own root
+    /// folder(s), the same set <see cref="ILibraryManager.GetVirtualFolders()"/> itself
+    /// reports, rather than browsing the server's whole filesystem: Jellyfin (often
+    /// containerized) typically has access to exactly those paths anyway, and this
+    /// keeps the picker showing only places a movie file could plausibly live.
+    /// </summary>
+    /// <param name="path">The directory to list, or omit/empty for the top-level list of library roots.</param>
+    /// <returns>The directory's contents, or the library-root list.</returns>
+    [HttpGet("BrowseFileSystem")]
+    public ActionResult<BrowseFileSystemResult> BrowseFileSystem([FromQuery] string? path)
+    {
+        var libraryRoots = _libraryManager.GetVirtualFolders()
+            .SelectMany(f => f.Locations.Select(loc => (Library: f.Name, Root: loc)))
+            .ToList();
+
+        if (string.IsNullOrEmpty(path))
+        {
+            var multiLocationLibraries = libraryRoots.GroupBy(r => r.Library).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet(StringComparer.Ordinal);
+            var rootEntries = libraryRoots
+                .Select(r => new FileSystemEntryDto(
+                    multiLocationLibraries.Contains(r.Library) ? $"{r.Library} ({Path.GetFileName(r.Root.TrimEnd(Path.DirectorySeparatorChar))})" : r.Library,
+                    r.Root,
+                    true))
+                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return Ok(new BrowseFileSystemResult(null, null, rootEntries));
+        }
+
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+        }
+        catch (Exception e) when (e is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return BadRequest("Invalid path.");
+        }
+
+        if (!libraryRoots.Any(r => IsPathUnderRoot(fullPath, r.Root)))
+        {
+            return BadRequest("Path is not inside any configured library.");
+        }
+
+        if (!Directory.Exists(fullPath))
+        {
+            return NotFound("Directory does not exist.");
+        }
+
+        List<FileSystemEntryDto> entries;
+        try
+        {
+            var directories = Directory.GetDirectories(fullPath)
+                .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                .Select(d => new FileSystemEntryDto(Path.GetFileName(d), d, true));
+            var files = Directory.GetFiles(fullPath)
+                .Where(MovieFileOperations.HasVideoExtension)
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .Select(f => new FileSystemEntryDto(Path.GetFileName(f), f, false));
+            entries = directories.Concat(files).ToList();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, $"Could not list directory: {e.Message}");
+        }
+
+        var isLibraryRoot = libraryRoots.Any(r => IsPathUnderRoot(fullPath, r.Root) && IsPathUnderRoot(r.Root, fullPath));
+        var parentPath = isLibraryRoot ? null : Path.GetDirectoryName(fullPath.TrimEnd(Path.DirectorySeparatorChar));
+        return Ok(new BrowseFileSystemResult(fullPath, parentPath, entries));
+    }
+
+    /// <summary>
+    /// Runs this plugin's own per-movie processing (title resolution, missing-
+    /// metadata search if enabled, trailer/theme song fetch, rename/migrate) against
+    /// exactly one movie the debug file picker selected, without touching or waiting
+    /// on a full library scan.
+    /// </summary>
+    /// <param name="request">The movie file's full path.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>What happened for this one item.</returns>
+    [HttpPost("RunSingleItem")]
+    public async Task<ActionResult<FetchTrailersTask.SingleItemRunResult>> RunSingleItem([FromBody] RunSingleItemRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request?.Path))
+        {
+            return BadRequest("No path provided.");
+        }
+
+        var item = _libraryManager.FindByPath(request.Path, isFolder: false);
+        if (item is not Movie movie)
+        {
+            return NotFound("This isn't a movie Jellyfin knows about yet - scan the library first (Dashboard -> Libraries -> Scan), then try again.");
+        }
+
+        var result = await _fetchTrailersTask.RunForSingleItemAsync(movie, cancellationToken).ConfigureAwait(false);
+        return Ok(result);
+    }
+
+    private static bool IsPathUnderRoot(string path, string root)
+    {
+        var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+        var normalizedPath = path.TrimEnd(Path.DirectorySeparatorChar);
+        return string.Equals(normalizedPath, normalizedRoot, StringComparison.Ordinal) ||
+               normalizedPath.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal);
     }
 
     /// <summary>

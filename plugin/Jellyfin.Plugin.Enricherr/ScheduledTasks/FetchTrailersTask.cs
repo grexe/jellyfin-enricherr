@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Jellyfin.Data.Enums;
@@ -370,6 +372,88 @@ public class FetchTrailersTask : IScheduledTask
     }
 
     /// <summary>
+    /// Runs this task's own per-movie processing (title resolution, missing-metadata
+    /// search if enabled, trailer/theme song fetch, rename/migrate/subtitle rename)
+    /// for exactly one already-known movie, entirely outside the normal per-library
+    /// batch run - backs the settings page's debug file picker, letting an admin see
+    /// how the plugin handles one specific file without waiting on, or otherwise
+    /// touching, a full library scan. Uses a fresh, throwaway
+    /// <see cref="TrailerFetchStats"/> and never touches run-summary/live-progress
+    /// persistence - this is a one-off diagnostic run, not part of the tracked run
+    /// history a normal scheduled/manual run leaves behind.
+    /// </summary>
+    /// <param name="movie">An already-known Jellyfin movie item (resolved from a filesystem path by the caller).</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    public async Task<SingleItemRunResult> RunForSingleItemAsync(Movie movie, CancellationToken cancellationToken)
+    {
+        var config = Plugin.Instance!.Configuration;
+
+        string? ffmpegDir = null;
+        try
+        {
+            ffmpegDir = Path.GetDirectoryName(_mediaEncoder.EncoderPath);
+        }
+        catch (ArgumentException)
+        {
+            // EncoderPath not configured yet; yt-dlp falls back to its own bundled/PATH ffmpeg.
+        }
+
+        string? ffprobePath = null;
+        try
+        {
+            ffprobePath = _mediaEncoder.ProbePath;
+        }
+        catch (ArgumentException)
+        {
+            // ProbePath not configured yet; quality checks are skipped without it.
+        }
+
+        var ytDlp = await BuildYtDlpClientAsync(config, ffmpegDir, cancellationToken).ConfigureAwait(false);
+        var themerrDb = new ThemerrDbClient(_httpClientFactory, _logger);
+        var stats = new TrailerFetchStats();
+        var hadProviderIdsBefore = movie.ProviderIds.Count > 0;
+
+        _logger.LogInformation("*** Debug run requested for: {Path}", movie.Path);
+        await ProcessMovieAsync(movie, config, ytDlp, themerrDb, stats, ffprobePath, cancellationToken).ConfigureAwait(false);
+
+        string outcome;
+        if (stats.Skipped > 0)
+        {
+            outcome = "Skipped - not in its own dedicated folder, and folder migration is off.";
+        }
+        else if (stats.Downloaded > 0)
+        {
+            outcome = "Downloaded a new trailer.";
+        }
+        else if (stats.Upgraded > 0)
+        {
+            outcome = "Replaced the existing trailer with a higher-quality one.";
+        }
+        else if (stats.AlreadyHadTrailer > 0)
+        {
+            outcome = "Already had a trailer meeting the configured quality/language preference - nothing to do.";
+        }
+        else if (stats.NotFound > 0)
+        {
+            outcome = "No suitable trailer found on YouTube.";
+        }
+        else
+        {
+            outcome = "No trailer action taken - see the server log for this run's full detail.";
+        }
+
+        return new SingleItemRunResult(
+            movie.Name,
+            movie.ProductionYear?.ToString(CultureInfo.InvariantCulture),
+            !hadProviderIdsBefore && movie.ProviderIds.Count > 0,
+            stats.AlreadyHadTrailer > 0,
+            stats.Downloaded > 0 || stats.Upgraded > 0,
+            stats.ThemeSongDownloaded > 0,
+            stats.ThemeSongAlreadyHad > 0,
+            outcome);
+    }
+
+    /// <summary>
     /// Scans just one library rather than the whole server (<see cref="ILibraryManager.QueueLibraryScan"/>),
     /// so Jellyfin picks up that library's own new trailer/theme song files and
     /// moved/renamed paths without needing to wait on - or re-validate - every other
@@ -477,6 +561,21 @@ public class FetchTrailersTask : IScheduledTask
     }
 
     private sealed record LibraryBatch(BaseItem LibraryItem, List<Movie> Movies, List<Series> Series);
+
+    /// <summary>
+    /// The outcome of a single debug run (<see cref="RunForSingleItemAsync"/>), for
+    /// the settings page's debug file picker to render directly rather than making
+    /// the admin dig through the server log for a one-off test.
+    /// </summary>
+    public sealed record SingleItemRunResult(
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("year")] string? Year,
+        [property: JsonPropertyName("metadataMatched")] bool MetadataMatched,
+        [property: JsonPropertyName("alreadyHadTrailer")] bool AlreadyHadTrailer,
+        [property: JsonPropertyName("trailerDownloadedOrUpgraded")] bool TrailerDownloadedOrUpgraded,
+        [property: JsonPropertyName("themeSongDownloaded")] bool ThemeSongDownloaded,
+        [property: JsonPropertyName("themeSongAlreadyHad")] bool ThemeSongAlreadyHad,
+        [property: JsonPropertyName("outcome")] string Outcome);
 
     /// <summary>
     /// Resolves the yt-dlp and deno executables to use, downloading and managing both
@@ -725,6 +824,11 @@ public class FetchTrailersTask : IScheduledTask
             Path.GetFileName(themeSongFolder),
             Path.GetFileNameWithoutExtension(localPath),
             StringComparison.Ordinal);
+
+        if (config.RenameLooseSubtitles && movieHasOwnFolder)
+        {
+            MovieFileOperations.RenameLooseSubtitles(localPath, safeTitle, config.DryRun, libraryRoot, _logger);
+        }
 
         // Confirmed live: a folder migrated in an *earlier* run never gets its
         // permissions healed by the block above, since MigrateToOwnFolder's own

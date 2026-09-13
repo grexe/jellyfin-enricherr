@@ -55,6 +55,20 @@
                                 <div class="fieldDescription settingHelp">A run processes one library at a time; as soon as a library's own movies and series are done, if anything in it was downloaded, moved, or renamed, this scans just that library - not the whole server - so the change shows up right away without waiting for either the next scheduled scan or every other configured library to finish too.</div>
                             </div>
 
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input id="TriggerOnNewItem" name="TriggerOnNewItem" type="checkbox" is="emby-checkbox" />
+                                    <span>Run automatically when a new movie or series is added</span>
+                                </label>
+                                <div class="fieldDescription settingHelp">
+                                    In addition to the schedule below (and a manual run), also triggers a run whenever a
+                                    new item is added to the library - waiting for that item's own metadata refresh to
+                                    actually finish first (not just the moment it's first discovered on disk, before its
+                                    title/year are resolved). Several items added in a burst (e.g. a bulk import) are
+                                    debounced into a single run, not one run per item. Off by default.
+                                </div>
+                            </div>
+
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="MaxTrailerDurationSeconds">Maximum trailer duration (seconds)</label>
                                 <input id="MaxTrailerDurationSeconds" name="MaxTrailerDurationSeconds" type="number" is="emby-input" min="30" value="300" />
@@ -171,6 +185,23 @@
                                     (<a is="emby-linkbutton" class="button-link" href="https://github.com/jellyfin/jellyfin/issues/10077" target="_blank" rel="noopener noreferrer">jellyfin/jellyfin#10077</a>).
                                     When this is "Disabled", a movie without its own folder is skipped entirely (logged as a
                                     warning) rather than downloading a trailer Jellyfin could never show.
+                                </div>
+                            </div>
+
+                            <div class="checkboxContainer checkboxContainer-withDescription">
+                                <label class="emby-checkbox-label">
+                                    <input id="RenameLooseSubtitles" name="RenameLooseSubtitles" type="checkbox" is="emby-checkbox" />
+                                    <span>Rename loose subtitle files</span>
+                                </label>
+                                <div class="fieldDescription settingHelp">
+                                    A release-named subtitle file sitting directly in a movie's own folder (e.g.
+                                    "Movie.1998.1080p.WEBRip.x264.AAC-[YTS.MX].srt", rather than matching the movie's own
+                                    filename) is renamed to match it, so Jellyfin recognizes it as an external subtitle. A
+                                    "Subs" subfolder of already correctly per-language-named files (e.g. "en.srt") is left
+                                    untouched - only a loose, unmatched file directly in the movie's folder is renamed, and
+                                    no language code is added (there's no reliable way to know what language it's actually
+                                    in). Only runs once the movie is already in its own dedicated folder, same as trailer
+                                    placement itself needs. Off by default.
                                 </div>
                             </div>
 
@@ -334,6 +365,31 @@
                                     <span>Verbose logging</span>
                                 </label>
                                 <div class="fieldDescription settingHelp">Log each rejected search candidate's specific reason ("Title mismatch: ...", "Duration &gt; 300s: ..."). Off by default to keep a normal run's log readable - a movie/series needing several fallback searches can otherwise generate dozens of these lines. Turn on when diagnosing why a specific movie/series isn't finding a trailer it should.</div>
+                            </div>
+
+                            <div style="margin-top: 1.5em;">
+                                <h3 class="checkboxListLabel">Run against a single file</h3>
+                                <div class="fieldDescription settingHelp">
+                                    Browse to one movie file and run this plugin's own processing against just that
+                                    item - useful for seeing exactly how a specific file is handled without waiting
+                                    on, or otherwise affecting, a full scan. Only shows files inside your configured
+                                    libraries. This is a real run against that one file (not a dry run) unless "Dry
+                                    run" above is also checked.
+                                </div>
+                                <div id="DebugFileBrowserPath" class="fieldDescription" style="margin-top: 0.6em; word-break: break-all; min-height: 1.2em;"></div>
+                                <button is="emby-button" type="button" id="DebugFileBrowserUpButton" class="raised button-cancel emby-button" style="display:none; margin-bottom: 0.5em;">
+                                    <span>&#8593; Up</span>
+                                </button>
+                                <div id="DebugFileBrowserList" style="max-height: 260px; overflow-y: auto; border: 1px solid rgba(128, 128, 128, 0.35); border-radius: 4px; padding: 0.25em 0;">
+                                    Loading&hellip;
+                                </div>
+                                <div style="margin-top: 0.75em; display: flex; align-items: center; gap: 0.75em; flex-wrap: wrap;">
+                                    <button is="emby-button" type="button" id="DebugRunSelectedButton" class="raised button-submit emby-button" disabled>
+                                        <span>Run for selected file</span>
+                                    </button>
+                                    <span id="DebugSelectedFileName" class="fieldDescription" style="margin: 0;"></span>
+                                </div>
+                                <div id="DebugRunResult" style="margin-top: 0.75em;"></div>
                             </div>
                         </div>
                     </div>
@@ -709,6 +765,79 @@
                 });
             }
 
+            // The debug file browser's own selection state - which file (if any) is
+            // currently picked for "Run for selected file", and the path currently
+            // being listed (null means the top-level library-root list).
+            var debugSelectedPath = null;
+
+            function loadDebugFileBrowser(path) {
+                var pathEl = document.querySelector('#DebugFileBrowserPath');
+                var listEl = document.querySelector('#DebugFileBrowserList');
+                var upButton = document.querySelector('#DebugFileBrowserUpButton');
+
+                listEl.textContent = 'Loading…';
+                var url = ApiClient.serverAddress() + '/Enricherr/BrowseFileSystem' + (path ? '?path=' + encodeURIComponent(path) : '');
+                fetch(url, {
+                    headers: { 'Authorization': authHeader() }
+                }).then(function (response) {
+                    if (!response.ok) {
+                        return response.text().then(function (text) {
+                            throw new Error(text || ('HTTP ' + response.status));
+                        });
+                    }
+
+                    return response.json();
+                }).then(function (result) {
+                    pathEl.textContent = result.path || 'Select a library:';
+                    // Shown whenever we're looking at an actual directory - even a
+                    // library root itself (result.parentPath null there), where "Up"
+                    // means back to the library picker, not just "has a parent path".
+                    upButton.style.display = result.path ? '' : 'none';
+                    upButton.onclick = function () {
+                        loadDebugFileBrowser(result.parentPath);
+                    };
+
+                    listEl.innerHTML = '';
+                    if (!result.entries.length) {
+                        listEl.textContent = 'Nothing here.';
+                        return;
+                    }
+
+                    result.entries.forEach(function (entry) {
+                        var row = document.createElement('div');
+                        row.style.padding = '0.4em 0.8em';
+                        row.style.cursor = 'pointer';
+                        row.style.borderBottom = '1px solid rgba(128, 128, 128, 0.15)';
+                        row.textContent = (entry.isDirectory ? '📁 ' : '🎬 ') + entry.name;
+
+                        if (entry.isDirectory) {
+                            row.addEventListener('click', function () {
+                                loadDebugFileBrowser(entry.path);
+                            });
+                        } else {
+                            row.addEventListener('click', function () {
+                                selectDebugFile(entry, row);
+                            });
+                        }
+
+                        listEl.appendChild(row);
+                    });
+                }).catch(function (err) {
+                    listEl.textContent = 'Failed to list directory: ' + err.message;
+                });
+            }
+
+            function selectDebugFile(entry, rowEl) {
+                debugSelectedPath = entry.path;
+                document.querySelector('#DebugSelectedFileName').textContent = 'Selected: ' + entry.name;
+                document.querySelector('#DebugRunSelectedButton').disabled = false;
+                document.querySelector('#DebugRunResult').innerHTML = '';
+
+                Array.prototype.forEach.call(document.querySelectorAll('#DebugFileBrowserList > div'), function (row) {
+                    row.style.fontWeight = row === rowEl ? '700' : '400';
+                });
+            }
+
             function loadLastRunSummary() {
                 var headerEl = document.querySelector('#LastRunSummaryHeader');
                 var detailsEl = document.querySelector('#LastRunSummaryDetails');
@@ -1059,15 +1188,18 @@
                     loadLastRunSummary();
                     loadLibraryTotals();
                     startLiveProgressPolling();
+                    loadDebugFileBrowser(null);
                     ApiClient.getPluginConfiguration(EnricherrConfig.pluginUniqueId).then(function (config) {
                         document.querySelector('#RenameOriginal').checked = config.RenameOriginal;
                         document.querySelector('#RenameSeriesFolders').checked = config.RenameSeriesFolders;
                         document.querySelector('#MigrateToFolders').value = config.MigrateToFolders;
+                        document.querySelector('#RenameLooseSubtitles').checked = config.RenameLooseSubtitles;
                         document.querySelector('#FixPermissions').checked = config.FixPermissions;
                         document.querySelector('#SearchForMissingMetadata').checked = config.SearchForMissingMetadata;
                         document.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
                         updateTmdbApiKeyEnabled();
                         document.querySelector('#TriggerLibraryScan').checked = config.TriggerLibraryScan;
+                        document.querySelector('#TriggerOnNewItem').checked = config.TriggerOnNewItem;
                         document.querySelector('#DryRun').checked = config.DryRun;
                         document.querySelector('#VerboseLogging').checked = config.VerboseLogging;
                         document.querySelector('#MaxTrailerDurationSeconds').value = config.MaxTrailerDurationSeconds;
@@ -1082,6 +1214,60 @@
                         updateCookiesStatus(config.CookiesFilePath);
                         loadLibraries(config.LibraryIds || []);
                         Dashboard.hideLoadingMsg();
+                    });
+                });
+
+            document.querySelector('#DebugRunSelectedButton')
+                .addEventListener('click', function () {
+                    if (!debugSelectedPath) {
+                        return;
+                    }
+
+                    var button = document.querySelector('#DebugRunSelectedButton');
+                    var resultEl = document.querySelector('#DebugRunResult');
+                    button.disabled = true;
+                    resultEl.textContent = 'Running…';
+
+                    fetch(ApiClient.serverAddress() + '/Enricherr/RunSingleItem', {
+                        method: 'POST',
+                        headers: { 'Authorization': authHeader(), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: debugSelectedPath })
+                    }).then(function (response) {
+                        return response.text().then(function (text) {
+                            var body = null;
+                            try {
+                                body = text ? JSON.parse(text) : null;
+                            } catch (parseErr) {
+                                // Not JSON (e.g. a plain-text error) - fall through with body left null.
+                            }
+
+                            if (!response.ok) {
+                                // A BadRequest/NotFound(string) result serializes as just a
+                                // JSON-encoded string, not an object - use it directly when
+                                // that's what came back, otherwise fall back to the raw text.
+                                throw new Error((typeof body === 'string' && body) || text || ('HTTP ' + response.status));
+                            }
+
+                            return body;
+                        });
+                    }).then(function (result) {
+                        resultEl.innerHTML = '';
+                        var lines = [
+                            result.title + (result.year ? ' (' + result.year + ')' : ''),
+                            'Metadata matched this run: ' + (result.metadataMatched ? 'yes' : 'no'),
+                            'Trailer: ' + (result.trailerDownloadedOrUpgraded ? 'downloaded/upgraded' : (result.alreadyHadTrailer ? 'already had one' : 'not found')),
+                            'Theme song: ' + (result.themeSongDownloaded ? 'downloaded' : (result.themeSongAlreadyHad ? 'already had one' : 'n/a')),
+                            result.outcome
+                        ];
+                        lines.forEach(function (line) {
+                            var p = document.createElement('div');
+                            p.textContent = line;
+                            resultEl.appendChild(p);
+                        });
+                    }).catch(function (err) {
+                        resultEl.textContent = 'Failed: ' + err.message;
+                    }).finally(function () {
+                        button.disabled = false;
                     });
                 });
 
@@ -1147,10 +1333,12 @@
                         config.RenameOriginal = document.querySelector('#RenameOriginal').checked;
                         config.RenameSeriesFolders = document.querySelector('#RenameSeriesFolders').checked;
                         config.MigrateToFolders = document.querySelector('#MigrateToFolders').value;
+                        config.RenameLooseSubtitles = document.querySelector('#RenameLooseSubtitles').checked;
                         config.FixPermissions = document.querySelector('#FixPermissions').checked;
                         config.SearchForMissingMetadata = document.querySelector('#SearchForMissingMetadata').checked;
                         config.TmdbApiKey = document.querySelector('#TmdbApiKey').value.trim();
                         config.TriggerLibraryScan = document.querySelector('#TriggerLibraryScan').checked;
+                        config.TriggerOnNewItem = document.querySelector('#TriggerOnNewItem').checked;
                         config.DryRun = document.querySelector('#DryRun').checked;
                         config.VerboseLogging = document.querySelector('#VerboseLogging').checked;
                         config.MaxTrailerDurationSeconds = parseInt(document.querySelector('#MaxTrailerDurationSeconds').value, 10);

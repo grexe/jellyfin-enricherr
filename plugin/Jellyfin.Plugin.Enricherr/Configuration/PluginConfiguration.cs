@@ -60,6 +60,8 @@ public class PluginConfiguration : BasePluginConfiguration
         FixPermissions = false;
         SearchForMissingMetadata = false;
         TmdbApiKey = string.Empty;
+        RenameLooseSubtitles = false;
+        TriggerOnNewItem = false;
     }
 
     /// <summary>
@@ -102,6 +104,19 @@ public class PluginConfiguration : BasePluginConfiguration
     /// change is picked up immediately instead of waiting for the next scheduled scan.
     /// </summary>
     public bool TriggerLibraryScan { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this plugin's own scheduled task
+    /// should run automatically whenever a new movie or series is added to the
+    /// library - not just on its configured schedule or a manual click. Waits for
+    /// the new item's own metadata refresh to actually finish (not just the moment
+    /// Jellyfin's library scanner first discovers the file, before its title/year/
+    /// provider ids are resolved) before triggering - see
+    /// <see cref="Services.NewItemWatcher"/> for exactly how that's detected. Several
+    /// items added in a burst (e.g. a bulk import) are debounced into a single run,
+    /// not one run per item. Off by default.
+    /// </summary>
+    public bool TriggerOnNewItem { get; set; }
 
     /// <summary>
     /// Gets or sets the path to a Netscape-format cookies.txt file on the server,
@@ -293,4 +308,21 @@ public class PluginConfiguration : BasePluginConfiguration
     /// primary title alone, same as before this setting existed.
     /// </summary>
     public string TmdbApiKey { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a "loose" subtitle file - one sitting
+    /// directly in a movie's own folder with a release-style name (e.g.
+    /// "Movie.1998.1080p.WEBRip.x264.AAC-[YTS.MX].srt") rather than matching the
+    /// movie's own filename - should be renamed to match it, so Jellyfin recognizes
+    /// it as an external subtitle. Common alongside a "Subs" subfolder of already
+    /// correctly-named per-language files (e.g. "en.srt"), which are left untouched -
+    /// only the loose, unmatched one is renamed. No language code is added (Jellyfin
+    /// treats a bare "&lt;movie&gt;.ext" as the default/undetermined-language
+    /// subtitle) since there's no reliable way to know what language a loosely-named
+    /// file like this is actually in. Only runs once a movie is verifiably in its own
+    /// dedicated folder (same precondition trailer placement itself needs), so a
+    /// shared flat folder's unrelated files are never swept in by mistake. Off by
+    /// default.
+    /// </summary>
+    public bool RenameLooseSubtitles { get; set; }
 }

@@ -29,6 +29,11 @@ public static class MovieFileOperations
         "extras", "behind the scenes", "deleted scenes", "featurettes", "interviews", "scenes", "shorts", "trailers"
     };
 
+    private static readonly HashSet<string> SubtitleExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx", ".smi"
+    };
+
     private const long MinMediaSizeBytes = 1024 * 1024; // 1 MB minimum for a valid movie video file
 
     /// <summary>
@@ -45,6 +50,15 @@ public static class MovieFileOperations
         return !string.IsNullOrEmpty(folder) &&
                string.Equals(Path.GetFileName(folder), Path.GetFileNameWithoutExtension(moviePath), StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Whether a path's extension looks like a video file - a much lighter check
+    /// than <see cref="IsValidMediaFile"/> (no size/sample/trailer/ignored-directory
+    /// checks), meant only for deciding what to show as selectable in the settings
+    /// page's debug file browser, not for deciding what this plugin should actually
+    /// process.
+    /// </summary>
+    public static bool HasVideoExtension(string path) => VideoExtensions.Contains(Path.GetExtension(path));
 
     /// <summary>Whether the local path is a valid main movie video file (not a trailer, sample, or extra).</summary>
     public static bool IsValidMediaFile(string localPath, out string? reason)
@@ -207,6 +221,92 @@ public static class MovieFileOperations
                entryStem.StartsWith(movieStem + ".", StringComparison.Ordinal) ||
                entryStem.StartsWith(movieStem + "-", StringComparison.Ordinal) ||
                entryStem.StartsWith(movieStem + "_", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Renames a "loose" subtitle file - one sitting directly in the movie's own
+    /// folder with a release-style name that doesn't already belong to the movie
+    /// (<see cref="IsSidecarOf"/>) - to match the movie's own filename, so Jellyfin
+    /// recognizes it as an external subtitle. Common real-world layout this targets:
+    /// a release-named file (e.g. "Movie.1998.1080p.WEBRip.x264.AAC-[YTS.MX].srt")
+    /// sitting next to the movie, alongside a "Subs" subfolder of already correctly
+    /// per-language-named files (e.g. "en.srt") - this only ever looks at the movie's
+    /// own folder directly, never descending into subfolders, so those are left
+    /// alone entirely. No language code is added to the renamed file (a bare
+    /// "&lt;movie&gt;.ext" is Jellyfin's own default/undetermined-language external
+    /// subtitle) - there's no reliable way to know what language a loosely-named
+    /// file like this is actually in, and guessing wrong would be worse than leaving
+    /// it unlabeled. Only ever acts once the movie is verifiably in its own dedicated
+    /// folder (<see cref="HasOwnFolder"/>) - the same precondition trailer placement
+    /// itself needs - so a shared flat folder's other movies' files are never swept
+    /// in by mistake.
+    /// </summary>
+    public static void RenameLooseSubtitles(string moviePath, string safeTitle, bool dryRun, string? libraryRoot, ILogger logger)
+    {
+        if (!HasOwnFolder(moviePath))
+        {
+            return;
+        }
+
+        var folderPath = Path.GetDirectoryName(moviePath);
+        if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+        {
+            return;
+        }
+
+        var movieStem = Path.GetFileNameWithoutExtension(moviePath);
+
+        string[] entries;
+        try
+        {
+            entries = Directory.GetFiles(folderPath);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning("  > Could not list {Folder} for loose subtitle files: {Error}", PathDisplay.Relative(folderPath, libraryRoot), e.Message);
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            var ext = Path.GetExtension(entry);
+            if (!SubtitleExtensions.Contains(ext))
+            {
+                continue;
+            }
+
+            var entryStem = Path.GetFileNameWithoutExtension(entry);
+
+            // Already belongs to the movie (either its current on-disk name or this
+            // run's resolved title) - nothing to rename.
+            if (IsSidecarOf(entryStem, movieStem) || IsSidecarOf(entryStem, safeTitle))
+            {
+                continue;
+            }
+
+            var targetPath = Path.Combine(folderPath, $"{safeTitle}{ext}");
+            if (File.Exists(targetPath))
+            {
+                logger.LogWarning("  > Loose subtitle {Name} found, but {Target} already exists - skipping.", Path.GetFileName(entry), Path.GetFileName(targetPath));
+                continue;
+            }
+
+            if (dryRun)
+            {
+                logger.LogInformation("  > [DRY-RUN] Would rename loose subtitle {Name} to {Target}.", Path.GetFileName(entry), Path.GetFileName(targetPath));
+                continue;
+            }
+
+            try
+            {
+                File.Move(entry, targetPath);
+                logger.LogInformation("  > Renamed loose subtitle {Name} to {Target}.", Path.GetFileName(entry), Path.GetFileName(targetPath));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning("  > Failed to rename loose subtitle {Name}: {Error}", Path.GetFileName(entry), e.Message);
+            }
+        }
     }
 
     /// <summary>

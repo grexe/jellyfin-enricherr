@@ -81,6 +81,17 @@
     </div>
 
     <div class="setting">
+      <span class="name">Run automatically when a new movie or series is added</span><span class="default">default: off</span>
+      <p>
+        In addition to the schedule below (and a manual run), also triggers a run whenever a new item is
+        added to the library — waiting for that item's own metadata refresh to actually finish first, not
+        just the moment it's first discovered on disk (before its title/year/provider ids are resolved).
+        Several items added in a burst (e.g. a bulk import) are debounced into a single run, not one run per
+        item.
+      </p>
+    </div>
+
+    <div class="setting">
       <span class="name">Maximum trailer duration (seconds)</span><span class="default">default: 300</span>
       <p>Search results longer than this are assumed to be a full movie, compilation, or unrelated video —
       not a trailer — and rejected.</p>
@@ -171,6 +182,21 @@
           trailer. The rest of a flat library is left untouched.</td></tr>
         <tr><th>Every movie</th><td>Move every movie encountered, regardless of trailer status.</td></tr>
       </table>
+    </div>
+
+    <div class="setting">
+      <span class="name">Rename loose subtitle files</span><span class="default">default: off</span>
+      <p>
+        A release-named subtitle file sitting directly in a movie's own folder (e.g.
+        <code>Movie.1998.1080p.WEBRip.x264.AAC-[YTS.MX].srt</code>, rather than matching the movie's own
+        filename) is renamed to match it, so Jellyfin recognizes it as an external subtitle. A
+        <code>Subs</code> subfolder of already correctly per-language-named files (e.g. <code>en.srt</code>)
+        is left untouched — only a loose, unmatched file directly in the movie's folder is renamed, and no
+        language code is added (there's no reliable way to know what language it's actually in — Jellyfin
+        treats a bare <code>&lt;movie&gt;.srt</code> as the default/undetermined-language subtitle). Only
+        runs once the movie is already in its own dedicated folder, same precondition trailer placement
+        itself needs.
+      </p>
     </div>
 
     <div class="setting">
@@ -319,6 +345,18 @@
         generate dozens of these lines, burying what actually matters for a normal run. Turn on when
         diagnosing why a specific movie/series isn't finding a trailer it should — see
         <a href="troubleshooting.html">Troubleshooting</a>.
+      </p>
+    </div>
+
+    <div class="setting">
+      <span class="name">Run against a single file</span><span class="default">not a setting</span>
+      <p>
+        A small file browser, scoped to your configured libraries' own root folders — never the server's
+        whole filesystem. Browse to one movie file and run this plugin's own processing against just that
+        item: title resolution, missing-metadata search (if enabled), trailer/theme song fetch, and rename/
+        migrate. Useful for seeing exactly how a specific file is handled without waiting on, or otherwise
+        affecting, a full scan. This is a real run against that one file, not a dry run, unless "Dry run"
+        above is also checked.
       </p>
     </div>
   </div>
