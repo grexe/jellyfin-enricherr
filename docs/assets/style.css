@@ -66,10 +66,15 @@ a:hover {
   flex-wrap: wrap;
 }
 
+.site-header-inner a:has(img) {
+  display: flex;
+  line-height: 0;
+}
+
 .site-header img {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
 }
 
 .site-header .site-title {
