@@ -112,10 +112,10 @@ main {
 }
 
 .hero img {
-  width: 96px;
-  height: 96px;
-  border-radius: 18px;
-  margin-bottom: 1rem;
+  width: 140px;
+  height: 140px;
+  border-radius: 26px;
+  margin-bottom: 1.25rem;
 }
 
 .hero h1 {
