@@ -112,15 +112,10 @@ main {
 }
 
 .hero img {
-  width: 140px;
-  height: 140px;
-  border-radius: 26px;
-  margin-bottom: 1.25rem;
-}
-
-.hero h1 {
-  margin: 0 0 0.5rem;
-  font-size: 2rem;
+  width: 320px;
+  height: auto;
+  border-radius: 56px;
+  margin-bottom: 1.5rem;
 }
 
 .hero p {
