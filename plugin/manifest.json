@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.3.1",
+        "changelog": "Added a ThemerrDB attribution badge next to \"Fetch theme songs\", styled like the existing TMDb one - credit for the community-curated database this plugin's theme-song lookups depend on, even though ThemerrDB itself doesn't require it. No logo image reproduced (couldn't confirm reuse permission for LizardByte's own logo), just a text badge and a clear \"not affiliated with or endorsed\" note, matching the credit already given in the README.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.3.1.zip",
+        "checksum": "028808028c934bba10510776969ef2ac",
+        "timestamp": "2026-09-15T19:19:20Z"
+      },
+      {
         "version": "1.7.3.0",
         "changelog": "The default scheduled-task trigger (seeded only once, when the task is first created on install) changed from nightly to weekly (Sunday, 4am). With \"Run automatically when a new movie or series is added\" available to react to genuinely new items as they arrive, a full re-scan every single night was more aggressive than it needed to be - it now mainly serves as a periodic safety net catching anything the event-driven watcher missed, or an earlier failed search that might succeed now. This only affects fresh installs; an already-configured trigger on an existing install is untouched - adjust or remove your own under Dashboard → Scheduled Tasks → Jellyfin Enricherr → Triggers.",
         "targetAbi": "10.11.0.0",
