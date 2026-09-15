@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.3.2",
+        "changelog": "The ThemerrDB attribution badge now shows the actual ThemerrDB logo (a small, locally bundled copy - no network fetch) instead of a plain text badge, matching how TMDb's own logo is already shown. Included under fair use for attribution purposes only; see ATTRIBUTION.md for the full notice.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.3.2.zip",
+        "checksum": "5ff69d42ace9e87b92b1e83ac073b598",
+        "timestamp": "2026-09-15T19:34:20Z"
+      },
+      {
         "version": "1.7.3.1",
         "changelog": "Added a ThemerrDB attribution badge next to \"Fetch theme songs\", styled like the existing TMDb one - credit for the community-curated database this plugin's theme-song lookups depend on, even though ThemerrDB itself doesn't require it. No logo image reproduced (couldn't confirm reuse permission for LizardByte's own logo), just a text badge and a clear \"not affiliated with or endorsed\" note, matching the credit already given in the README.",
         "targetAbi": "10.11.0.0",

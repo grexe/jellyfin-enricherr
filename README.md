@@ -128,4 +128,5 @@ Theme song lookups use [ThemerrDB](https://github.com/LizardByte/ThemerrDB) © L
 hosted database mapping movies/TV shows to their theme song's YouTube URL, the same one the
 [Themerr-jellyfin](https://github.com/LizardByte/Themerr-jellyfin) plugin uses. Only the data is used (a plain
 HTTP lookup at runtime, no API key); none of this plugin's download code is derived from Themerr-jellyfin's own
-source, and this project isn't affiliated with or endorsed by LizardByte.
+source, and this project isn't affiliated with or endorsed by LizardByte. See [`ATTRIBUTION.md`](ATTRIBUTION.md)
+for the full notice, including the ThemerrDB logo shown on the settings page.
