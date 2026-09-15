@@ -1588,14 +1588,24 @@ public class FetchTrailersTask : IScheduledTask
         _logger.LogInformation("==========================================");
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Seeds this task's trigger the first time it's ever created (installing the
+    /// plugin, or resetting triggers to default) - Jellyfin persists whatever the
+    /// admin does with it after that, so this never re-applies itself later. Weekly
+    /// rather than nightly: with <see cref="Configuration.PluginConfiguration.TriggerOnNewItem"/>
+    /// available (off by default) to react to genuinely new items as they arrive, a
+    /// full re-scan mainly matters as an eventual-consistency safety net - catching
+    /// anything the event-driven watcher missed, or an earlier failed search that
+    /// might succeed now - not something that needs to run every single night.
+    /// </summary>
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
         return
         [
             new TaskTriggerInfo
             {
-                Type = TaskTriggerInfoType.DailyTrigger,
+                Type = TaskTriggerInfoType.WeeklyTrigger,
+                DayOfWeek = DayOfWeek.Sunday,
                 TimeOfDayTicks = TimeSpan.FromHours(4).Ticks
             }
         ];

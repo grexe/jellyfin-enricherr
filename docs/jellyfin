@@ -9,6 +9,14 @@
     "imageUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/images/logo-banner.png",
     "versions": [
       {
+        "version": "1.7.3.0",
+        "changelog": "The default scheduled-task trigger (seeded only once, when the task is first created on install) changed from nightly to weekly (Sunday, 4am). With \"Run automatically when a new movie or series is added\" available to react to genuinely new items as they arrive, a full re-scan every single night was more aggressive than it needed to be - it now mainly serves as a periodic safety net catching anything the event-driven watcher missed, or an earlier failed search that might succeed now. This only affects fresh installs; an already-configured trigger on an existing install is untouched - adjust or remove your own under Dashboard → Scheduled Tasks → Jellyfin Enricherr → Triggers.",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://raw.githubusercontent.com/grexe/jellyfin-enricherr/main/plugin/dist/Jellyfin.Plugin.Enricherr_1.7.3.0.zip",
+        "checksum": "34df9277204bc9c2efe5342501ad5899",
+        "timestamp": "2026-09-15T18:38:57Z"
+      },
+      {
         "version": "1.7.2.2",
         "changelog": "The \"Current run\" statistics tab showed the literal word \"undefined\" instead of \"n/a\" for a library the run hadn't reached yet, contradicting its own documented behavior - Jellyfin's own JSON serialization omits a null field entirely rather than sending it as JSON null, so the check in the settings page's own JavaScript (looking only for an explicit null) missed it. Fixed to treat a missing field the same as an explicit null.",
         "targetAbi": "10.11.0.0",
